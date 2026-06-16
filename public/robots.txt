@@ -1,0 +1,73 @@
+# ForexAnalyzer Pro crawler policy
+# Public website: https://www.forexanalyzerpro.com/
+
+User-agent: *
+Allow: /
+Allow: /robots.txt
+Allow: /sitemap.xml
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /favicon.svg
+Allow: /favicon.ico
+Allow: /favicon-16x16.png
+Allow: /favicon-32x32.png
+Allow: /apple-touch-icon.png
+
+# Authenticated app screens and user-generated share links should not be indexed.
+Disallow: /dashboard
+Disallow: /trades
+Disallow: /analytics
+Disallow: /journal
+Disallow: /calendar
+Disallow: /copy
+Disallow: /alerts
+Disallow: /accounts
+Disallow: /commands
+Disallow: /settings
+Disallow: /connect
+Disallow: /share/
+Disallow: /api/
+
+Sitemap: https://www.forexanalyzerpro.com/sitemap.xml
+
+# AI and answer-engine crawlers. These repeat the same public/private boundary.
+User-agent: GPTBot
+Allow: /
+Disallow: /dashboard
+Disallow: /trades
+Disallow: /analytics
+Disallow: /journal
+Disallow: /calendar
+Disallow: /copy
+Disallow: /alerts
+Disallow: /accounts
+Disallow: /commands
+Disallow: /settings
+Disallow: /connect
+Disallow: /share/
+Disallow: /api/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /share/
+Disallow: /api/
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /share/
+Disallow: /api/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /share/
+Disallow: /api/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /share/
+Disallow: /api/
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /share/
+Disallow: /api/

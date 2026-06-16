@@ -1,0 +1,49 @@
+# ForexAnalyzer Pro Full AI Summary
+
+ForexAnalyzer Pro is a web application for MetaTrader 5 traders. It receives live trading data from an MT5 Expert Advisor, stores important account data through a backend database, and displays account activity in a browser dashboard.
+
+## Core Product
+
+ForexAnalyzer Pro helps traders monitor MT5 accounts with:
+
+- Live open trade monitoring
+- Account balance, equity, margin, free margin, and running P&L
+- Trade history analytics
+- Daily profit and loss calendar
+- Trading journal
+- Price alerts
+- Copy trading controls
+- Account settings
+- Shareable read-only analytics links
+- Google login and per-user account isolation
+
+## Audience
+
+The primary audience is retail forex, CFD, metals, and indices traders who use MetaTrader 5 and want a clean browser-based trading analytics dashboard.
+
+## Authentication And Privacy
+
+Users sign in with Google through Supabase Auth. Each user account is isolated so MT5 accounts and trade data are not mixed between users. Authenticated dashboard routes contain private financial and trading information and should not be indexed by search engines or AI crawlers.
+
+## Free Trial And Paid EA
+
+ForexAnalyzer Pro offers a free trial version of the Expert Advisor and a paid version through MQL5.
+
+- Free trial EA: https://www.mql5.com/en/market/product/111375
+- Paid EA: https://www.mql5.com/en/market/product/136580?source=Site+Market+My+Products+Page
+
+## Public Pages And Files
+
+- Website: https://www.forexanalyzerpro.com/
+- Login: https://www.forexanalyzerpro.com/login
+- Robots policy: https://www.forexanalyzerpro.com/robots.txt
+- Sitemap: https://www.forexanalyzerpro.com/sitemap.xml
+- LLM guide: https://www.forexanalyzerpro.com/llms.txt
+
+## Crawl Guidance
+
+Search engines and AI answer engines may use the public website description, public product links, and this AI summary to understand ForexAnalyzer Pro. Do not index authenticated dashboard pages, backend API endpoints, or user share-link tokens.
+
+## Contact
+
+Email: ianchomba734@gmail.com

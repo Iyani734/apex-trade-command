@@ -1,0 +1,210 @@
+================================================================================
+  COPY TRADING — FRONTEND ↔ SERVER ↔ EA CONTRACT (v4.1.0)
+================================================================================
+
+Backend version: 4.1.0
+Confirm with: GET http://127.0.0.1:3000/health  → { "version": "4.1.0", ... }
+
+This file is the single source of truth for what the frontend sends and what
+the server is expected to return on every copy-trading endpoint. If the Copy
+Trading page shows an "API failed" toast, the request reached the server but
+came back with a non-2xx status (or the route is missing). Walk through the
+spec below and compare each request/response in the browser DevTools Network
+tab against the shapes here.
+
+Base URL: http://127.0.0.1:3000/api  (override with VITE_API_URL)
+WebSocket: http://127.0.0.1:3000     (socket.io-client v4)
+
+EA push intervals (v4.1.0):
+  LivePushIntervalMs = 200    (was 2000 in v4.0.2)
+  CommandPollMs      = 100    (was 500)
+End-to-end copy latency target: ~250 ms.
+
+--------------------------------------------------------------------------------
+1) LIST PAIRS
+--------------------------------------------------------------------------------
+  GET /api/copy/pairs
+
+  Response 200:
+  {
+    "pairs": [
+      {
+        "masterAccountId": "12345678",
+        "slaveAccountId":  "87654321",
+        "lotMultiplier":   1.0,
+        "copySL":          true,
+        "copyTP":          true,
+        "active":          true,
+        "createdAt":       "2025-04-21T10:00:00.000Z",
+        "latency": {              ← may be null until first round-trip is measured
+          "avg_ms":  142,
+          "min_ms":  88,
+          "max_ms":  310,
+          "last_ms": 130,
+          "count":   2048
+        }
+      }
+    ]
+  }
+
+  Latency badge mapping used by the UI:
+    avg_ms < 200   → green  "Fast"
+    avg_ms < 500   → yellow "Normal"
+    avg_ms ≥ 500   → red    "Slow"
+    null / count=0 → grey   "No data"
+
+--------------------------------------------------------------------------------
+2) CREATE PAIR
+--------------------------------------------------------------------------------
+  POST /api/copy/pairs
+  Content-Type: application/json
+  {
+    "masterAccountId": "12345678",   ← required
+    "slaveAccountId":  "87654321",   ← required, must differ from master
+    "lotMultiplier":   1.0,           ← optional, default 1.0
+    "copySL":          true,          ← optional, default true
+    "copyTP":          true           ← optional, default true
+  }
+
+  Server MUST:
+    - Reject 400 if masterAccountId === slaveAccountId
+    - Reject 400 if either account is not yet registered (EA never connected)
+    - Persist the pair (config/copy_pairs.json or equivalent)
+    - Mark the slave's role = "SLAVE" and master_account = <masterAccountId>
+    - Push STATIC_UPDATE so the slave EA picks up its new role on next poll
+    - Internally call POST /api/accounts/<slave>/resume
+
+  Response 201:
+  { "ok": true, "pair": { ...same shape as the list item... } }
+
+--------------------------------------------------------------------------------
+3) UPDATE PAIR
+--------------------------------------------------------------------------------
+  PUT /api/copy/pairs/:slaveAccountId
+  Content-Type: application/json
+  (Send only the fields you want to change.)
+  {
+    "lotMultiplier": 2.5,
+    "copySL":        false,
+    "copyTP":        true,
+    "active":        false      ← false = pause copying; true = resume
+  }
+
+  Server MUST:
+    - Patch the existing pair
+    - When "active" flips, also forward PAUSE_TRADING / RESUME_TRADING to the
+      slave EA (slave reacts within ~100 ms with v4.1.0 CommandPollMs)
+    - Push STATIC_UPDATE so EA sees the new lot multiplier / flags
+
+  Response 200:
+  { "ok": true, "pair": { ... } }
+
+--------------------------------------------------------------------------------
+4) DELETE PAIR
+--------------------------------------------------------------------------------
+  DELETE /api/copy/pairs/:slaveAccountId
+
+  Server MUST:
+    - Remove the pair from storage and clear the slave's event queue
+    - Reset the slave's role to "STANDALONE" and clear master_account
+    - Push STATIC_UPDATE
+    - NOT auto-close existing slave trades. If the user wants that, the UI
+      calls POST /api/accounts/:slaveAccountId/close-all FIRST.
+
+  Response 200:
+  { "ok": true }
+
+--------------------------------------------------------------------------------
+5) LATENCY STATS  (v4.1.0)
+--------------------------------------------------------------------------------
+  GET /api/copy/latency
+
+  Round-trip latency: from the moment the server queued an OPEN/MODIFY/CLOSE
+  event for a slave to the moment the slave EA echoed it back via
+  POST /ea/result with header X-Event-Ts.
+
+  Response 200:
+  {
+    "latency": {
+      "87654321": {
+        "avg_ms":  142,
+        "min_ms":  88,
+        "max_ms":  310,
+        "last_ms": 130,
+        "samples": 2048
+      }
+    }
+  }
+
+  The frontend polls this every 5 seconds and renders the latency badge on
+  every pair card.
+
+--------------------------------------------------------------------------------
+6) QUEUE STATS  (v4.1.0, debug panel)
+--------------------------------------------------------------------------------
+  GET /api/copy/queue-stats
+
+  Response 200:
+  {
+    "queues": {
+      "87654321": {
+        "depth":         12,   ← events waiting for the slave to ACK
+        "seen_tickets":  3,    ← master tickets the slave has acknowledged
+        "pending_close": 0     ← CLOSE events still awaiting slave ACK
+      }
+    }
+  }
+
+  depth > 50 while the slave is online means the slave is processing events
+  slower than they arrive. Inspect the slave EA logs.
+
+--------------------------------------------------------------------------------
+7) HOW THE EA HANDLES A SLAVE ACCOUNT
+--------------------------------------------------------------------------------
+On every /ea/static the slave receives its config:
+{
+  "role":           "SLAVE",
+  "master_account": "12345678",
+  "lot_multiplier": 1.0,
+  "copy_sl":        true,
+  "copy_tp":        true
+}
+
+The slave EA polls GET /ea/copy-events/:masterAccountId every CommandPollMs
+(=100 ms in v4.1.0) and reacts to:
+  { "event": "OPEN",   "ticket": 123, "symbol": "EURUSD", "type": "BUY",
+    "lots": 0.10, "open_price": 1.085, "sl": 1.080, "tp": 1.090 }
+  { "event": "MODIFY", "ticket": 123, "sl": 1.082, "tp": 1.092 }
+  { "event": "CLOSE",  "ticket": 123 }
+
+After processing, the slave EA POSTs /ea/result with header X-Event-Ts so the
+server can compute the round-trip latency reported in /api/copy/latency.
+
+--------------------------------------------------------------------------------
+8) CLOSE-ALL PROPAGATION (already wired in the UI)
+--------------------------------------------------------------------------------
+The Copy Trading page exposes a "Close all" action that calls:
+  POST /api/accounts/<masterId>/close-all
+  POST /api/accounts/<slaveId>/close-all
+in parallel. The server queues a CLOSE_ALL command for each EA; both EAs pick
+it up on their next /ea/commands poll (~100 ms).
+
+--------------------------------------------------------------------------------
+9) DEBUGGING "API failed"
+--------------------------------------------------------------------------------
+1. Open browser DevTools → Network → filter "copy".
+2. Confirm the request URL matches the spec above (path + method + body shape).
+3. 404 → server route is missing or the server is not v4.1.0. Check /health.
+4. 400 → check the JSON payload — usually masterAccountId == slaveAccountId,
+        or one of the accounts has not been registered yet (EA has not
+        connected once). Hit GET /api/accounts to see who's registered.
+5. 500 → check server logs (likely JSON parse / storage write error).
+6. CORS error → the server must allow the dev origin (http://localhost:8080
+        by default in Vite).
+7. Pair created but trades don't copy:
+     - GET /api/debug — confirm the slave EA is polling /ea/commands
+     - GET /api/copy/queue-stats — depth should drop quickly when slave is up
+     - Confirm slave's /ea/static payload contains role = "SLAVE"
+     - Confirm trading is NOT paused on the slave: POST /api/accounts/<id>/resume
+
+================================================================================

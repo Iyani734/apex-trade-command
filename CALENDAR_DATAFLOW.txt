@@ -1,0 +1,96 @@
+CALENDAR DATA FLOW — How the Trading Calendar gets its data
+================================================================
+
+OVERVIEW
+--------
+The Trading Calendar (src/pages/CalendarPage.tsx) is a pure read-only view
+that aggregates CLOSED trades into per-day P&L totals. It never calls the
+server directly — it reads from the Zustand store (`useTradingStore`).
+
+DATA SOURCE CHAIN
+-----------------
+1. MT5 Expert Advisor pushes JSON snapshots to the backend (every ~2 sec).
+2. Backend stores them and broadcasts via WebSocket / REST.
+3. `src/hooks/useWebSocket.ts` receives a snapshot for an account and:
+     - maps `data.trade_history[]`  →  `TradeHistory[]` (see store).
+     - calls `store.setSnapshot(accountId, { history, ... })`.
+4. `src/store/tradingStore.ts` exposes:
+     - `history`            : closed trades for the ACTIVE account
+     - `accounts`           : all accounts the user has connected
+     - `activeAccountId`    : currently selected account
+5. CalendarPage reads `history` and aggregates by day.
+
+EXPECTED TRADE SHAPE (after mapping in useWebSocket.ts ~line 207)
+------------------------------------------------------------------
+{
+  ticket:    number,
+  symbol:    string,                // "EURUSD"
+  type:      "BUY" | "SELL",
+  lots:      number,
+  openPrice: number,
+  closePrice:number,
+  profit:    number,                // net profit in account currency (USD)
+  openTime:  string,                // human format from EA: entry_time_human
+  closeTime: string,                // human format from EA: exit_time_human
+  duration:  string,
+  pips:      number,
+}
+
+CRITICAL: DATE FORMAT
+---------------------
+The EA may send date strings in several formats depending on broker locale:
+
+  ✅ "2026-03-15 14:32:11"     (ISO-ish, slice works)
+  ✅ "2026-03-15T14:32:11Z"    (full ISO, parses natively)
+  ⚠️  "15.03.2026 14:32"       (DE/MT5 default — slice(0,10) FAILS)
+  ⚠️  "03/15/2026 14:32"       (US — slice(0,10) FAILS)
+
+The calendar uses a defensive `parseDayKey()` helper that tries:
+  1. Native `new Date()` parse
+  2. ISO prefix slice
+  3. dd.mm.yyyy / mm/dd/yyyy / dd-mm-yyyy regex fallback
+
+If a trade has BOTH closeTime and openTime missing or unparseable, it is
+SILENTLY SKIPPED (not counted in any day). Check browser console for the
+warning `[Calendar] unparseable date:` to debug missing trades.
+
+AGGREGATION LOGIC
+-----------------
+For each closed trade in `history`:
+  - bucket key  = closeTime || openTime  → parsed to "YYYY-MM-DD"
+  - day.profit += trade.profit            (already net of fees from EA)
+  - day.trades += 1
+  - day.wins   += 1   if profit > 0
+  - day.losses += 1   if profit < 0
+
+Weekends (Sat/Sun) are filtered out of the grid entirely. If a trade
+happened to close on a weekend, it is currently dropped from the visible
+grid but still counted in monthly Win Rate / Profit Factor stats.
+
+FALLBACK / DEMO MODE
+--------------------
+If `history.length === 0` AND no real account is streaming yet, the
+calendar shows a synthetic 6-month demo dataset so the UI can be evaluated.
+This demo is generated client-side in CalendarPage and is clearly labelled
+"Demo data" in the title row. As soon as real history arrives, the demo is
+hidden automatically.
+
+PERFORMANCE
+-----------
+- Aggregation runs once per `history` change via `useMemo`.
+- Month + Year views read from the same pre-computed `dailyMap` — switching
+  views is O(1).
+- Wheel scroll is throttled to 350ms and clamped between the first trade
+  month and the current month.
+
+DEBUGGING CHECKLIST
+-------------------
+If days appear empty:
+  1. Open DevTools → Console. Look for `[Calendar] parsed N trades, M days`.
+  2. If N is 0 → the active account has no `trade_history` from the EA.
+     Check the WebSocket payload for `trade_history: []`.
+  3. If N > 0 but M is 0 → date format is unparseable. Inspect a sample
+     `closeTime` value and add the format to `parseDayKey()`.
+  4. If totals look wrong → the EA may be reporting `gross_profit` instead
+     of `net_profit`. The mapping in useWebSocket.ts line 214 uses
+     `t.net_profit` — confirm the EA emits this field.

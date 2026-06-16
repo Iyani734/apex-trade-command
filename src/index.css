@@ -1,0 +1,155 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 228 40% 6%;
+    --foreground: 210 40% 93%;
+
+    --card: 225 30% 10%;
+    --card-foreground: 210 40% 93%;
+
+    --popover: 225 30% 10%;
+    --popover-foreground: 210 40% 93%;
+
+    --primary: 190 95% 50%;
+    --primary-foreground: 228 40% 6%;
+
+    --secondary: 225 25% 16%;
+    --secondary-foreground: 210 40% 93%;
+
+    --muted: 225 20% 14%;
+    --muted-foreground: 215 20% 55%;
+
+    --accent: 260 80% 60%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 145 70% 45%;
+    --success-foreground: 228 40% 6%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 228 40% 6%;
+
+    --border: 225 20% 18%;
+    --input: 225 20% 18%;
+    --ring: 190 95% 50%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 228 35% 8%;
+    --sidebar-foreground: 215 20% 65%;
+    --sidebar-primary: 190 95% 50%;
+    --sidebar-primary-foreground: 228 40% 6%;
+    --sidebar-accent: 225 25% 14%;
+    --sidebar-accent-foreground: 210 40% 93%;
+    --sidebar-border: 225 20% 14%;
+    --sidebar-ring: 190 95% 50%;
+
+    --glass-bg: 225 30% 10% / 0.6;
+    --glass-border: 225 20% 25% / 0.3;
+    --glow-primary: 190 95% 50%;
+    --glow-accent: 260 80% 60%;
+
+    --font-body: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-height: 100%;
+    overflow-x: hidden;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-card/60 backdrop-blur-xl border border-white/[0.06] rounded-xl;
+    box-shadow: 0 0 30px -10px hsl(var(--glow-primary) / 0.08),
+                inset 0 1px 0 0 hsl(0 0% 100% / 0.03);
+  }
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300;
+  }
+  .glass-card-hover:hover {
+    box-shadow: 0 0 40px -10px hsl(var(--glow-primary) / 0.15),
+                inset 0 1px 0 0 hsl(0 0% 100% / 0.06);
+    border-color: hsl(var(--primary) / 0.2);
+  }
+  .neon-text {
+    color: hsl(var(--primary));
+    text-shadow: 0 0 20px hsl(var(--glow-primary) / 0.4);
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  .glow-border {
+    @apply border;
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 0 15px -5px hsl(var(--glow-primary) / 0.2);
+  }
+  .kpi-value {
+    font-family: var(--font-mono);
+    @apply text-2xl font-bold tracking-tight;
+  }
+  .profit-positive {
+    color: hsl(var(--success));
+  }
+  .profit-negative {
+    color: hsl(var(--destructive));
+  }
+
+  /* Kill the default white focus ring Recharts surfaces show on click */
+  .recharts-wrapper:focus,
+  .recharts-wrapper:focus-visible,
+  .recharts-surface:focus,
+  .recharts-surface:focus-visible {
+    outline: none !important;
+  }
+  /* Style native <select> dropdown popups (the OS popup that appears
+     when clicking <select>) so they don't render bright white. */
+  select option {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+  }
+
+  /* Bluish scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, hsl(var(--primary) / 0.4), hsl(var(--accent) / 0.35));
+    border-radius: 4px;
+    border: 1px solid hsl(var(--primary) / 0.15);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, hsl(var(--primary) / 0.7), hsl(var(--accent) / 0.55));
+    box-shadow: 0 0 8px hsl(var(--primary) / 0.4);
+  }
+  ::-webkit-scrollbar-corner { background: transparent; }
+  * { scrollbar-color: hsl(var(--primary) / 0.5) hsl(var(--background)); scrollbar-width: thin; }
+}
+
+/* Wider collapsed sidebar (was 3rem, now 4.5rem so labels/icons breathe) */
+[data-sidebar="sidebar"] { --sidebar-width-icon: 4.5rem; }
+.group\/sidebar-wrapper { --sidebar-width-icon: 4.5rem !important; }

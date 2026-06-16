@@ -1,0 +1,173 @@
+JOURNAL & STRATEGY PERFORMANCE — DATA FLOW
+============================================
+
+This document describes how the Journal page (and its Strategy
+Performance / deep-dive view) gets its data, both for a real connected
+EA account and for the built-in Demo Mode.
+
+------------------------------------------------------------
+1. STORAGE
+------------------------------------------------------------
+
+Every journal entry lives in two places:
+
+  a) Zustand state            -> useTradingStore.journal
+                                 (in-memory, instant render)
+  b) localStorage             -> key "tvp.journal"
+                                 (persisted across reloads)
+
+These two are kept in sync by helpers in src/lib/userPrefs.ts
+(addJournal / updateJournal / deleteJournal). The store mutations in
+src/store/tradingStore.ts always call userPrefs first, then update
+the in-memory list.
+
+A single entry's shape is defined by `JournalEntry` in
+src/store/tradingStore.ts and includes:
+
+  id            - unique journal id (NOT the broker ticket)
+  accountId     - which account the trade belongs to (CRITICAL)
+  ticket        - broker deal ticket
+  symbol, type, lots, openTime, closeTime
+  strategy      - free-form tag e.g. "ICT OB", "Breakout"
+  setup         - sub-grade A+/A/B/C
+  confidence    - 1-5 trader rating
+  emotion       - free-form tag
+  reason, notes - free-text journal context
+  source        - "manual" | "copier"
+  status        - "open" | "closed"
+  entrySnapshot - { lots, openPrice, sl, tp, balance, equity, spread }
+  exitSnapshot  - { closePrice, pips, durationMs } (filled on close)
+  score         - composite 0-100 (auto on close)
+  scoreBreakdown- { rr, rule, timing, outcome }
+
+------------------------------------------------------------
+2. ACCOUNT SCOPING (the bug we fixed)
+------------------------------------------------------------
+
+The store keeps a SINGLE flat array of journal entries across every
+account. The Journal page now scopes that array to the active account
+before rendering anything:
+
+  const journal = allJournal.filter(j => j.accountId === activeAccountId)
+
+This means:
+  - Switching accounts in the topbar instantly switches journal data
+  - Demo journal entries (accountId: "10047832") stay invisible while
+    you are viewing a real connected account
+  - Strategy Performance, all filters, the deep-dive modal, and the
+    "All Entries" tab count are all derived from this scoped array.
+
+------------------------------------------------------------
+3. LIVE ACCOUNT FLOW (real EA via Socket.io)
+------------------------------------------------------------
+
+src/hooks/useWebSocket.ts subscribes to the EA bridge and on every
+push receives a per-account snapshot containing:
+
+  - open_positions[]   (currently open trades)
+  - trade_history[]    (recently closed trades)
+  - account            (balance, equity, etc.)
+  - analytics          (precomputed by the backend)
+
+For each push we run two things:
+
+(a) detectNewPositions()
+    - Compares open_positions to the per-account "seen" ticket list
+      stored in localStorage (key "tvp.seenTickets").
+    - Brand-new tickets are auto-recorded into the journal with
+      status="open", source="manual" (or "copier" if is_copy_trade),
+      and an entrySnapshot of price/SL/TP/balance/spread.
+    - Manual new positions also enqueue an in-the-moment journal
+      prompt so the user can tag strategy/emotion right away.
+
+(b) Reconcile journal "open" entries against the snapshot
+    For every journal entry where accountId === current account AND
+    status === "open":
+      - If the ticket appears in trade_history -> mark closed,
+        capture exitSnapshot, run scoreTrade() to assign 0-100
+        composite score + breakdown.
+      - If the ticket is NOT in open_positions AND NOT in history,
+        the broker has closed it but the history slice doesn't
+        cover that ticket yet. We still mark it closed defensively
+        with the last known close time so the journal never shows
+        a phantom "OPEN" for a trade that no longer exists in the
+        Trades view. (This was the source of the "everything shows
+        as open" bug on freshly connected accounts.)
+
+The scoring pipeline:
+  src/lib/tradeScore.ts -> scoreTrade(entry, peerAvgProfit)
+  Returns { score, breakdown:{ rr, rule, timing, outcome } }
+  - rr      : risk-to-reward of the planned trade vs. realised
+  - rule    : whether SL/TP were respected, no late additions
+  - timing  : duration vs. typical for the symbol
+  - outcome : profit relative to the account's average win
+
+------------------------------------------------------------
+4. DEMO / MOCK FLOW
+------------------------------------------------------------
+
+When Mock Mode is ON (Settings -> "Use demo data"):
+  - src/hooks/useMockData.ts loads mockAccounts, mockPositions,
+    mockHistory, mockAnalytics, and a curated mockJournal of ~390
+    entries spanning Apr 2024 -> Apr 2025.
+  - Mock journal entries all use accountId "10047832" (the demo
+    "Main Live" account), so they ONLY show when that demo
+    account is active. Switching to "Scalping" or "Swing Demo"
+    inside demo mode shows an empty journal, exactly like a fresh
+    real account.
+  - Seeding is gated behind localStorage key "tvp.mockJournalSeeded.v2"
+    so demo entries are written exactly once. After seeding the
+    user can edit/delete them freely and demo mode won't overwrite.
+  - Mock Mode is OFF by default and never overrides a real account's
+    data.
+
+------------------------------------------------------------
+5. STRATEGY PERFORMANCE (the second tab)
+------------------------------------------------------------
+
+Inside JournalPage we group the scoped, closed entries into rows
+keyed by (strategy, setup):
+
+  for each closed journal entry in date range and active account:
+    key = `${strategy}|${setup ?? '—'}`
+    accumulate trades, wins, losses, profit, avg score
+
+Each card shows headline KPIs (win rate, P/L, avg score) and the
+last 30 trades for that group. Clicking a card opens
+StrategyDeepDive (src/components/journal/StrategyDeepDive.tsx)
+which derives, all from the same scoped entries:
+
+  - Headline KPIs (PF, expectancy, avg win/loss, best/worst,
+    avg score, best session)
+  - Cumulative P/L line chart for that strategy only
+  - Per-session breakdown (Asia / London / Overlap / NY / After hours)
+    derived from each entry's openTime UTC hour
+  - Per-symbol breakdown
+  - Day-of-week bar chart
+  - Full trade list — clicking opens TradeDetailDrawer which shows
+    every snapshot field (lots, entry/exit, SL/TP, pips, duration,
+    spread@entry, balance@entry, journal context).
+
+Nothing in the deep-dive talks to the network — it is 100% derived
+from journal entries already in the store, so it works identically
+in demo and live mode.
+
+------------------------------------------------------------
+6. WHEN YOU CONNECT A NEW REAL ACCOUNT
+------------------------------------------------------------
+
+Expected behaviour with the fixes in this release:
+
+  1. Topbar switches to the new accountId.
+  2. Journal page filters to that accountId — empty if it's the
+    first time.
+  3. INIT/FULL_UPDATE arrives, open_positions get auto-recorded
+    as new "open" journal entries (source=manual/copier).
+  4. As trades close, entries flip to "closed" with exitSnapshot
+    and an auto-score.
+  5. Strategy Performance starts populating once you tag entries
+    with a strategy (use the row's edit pencil or the in-the-moment
+    prompt that pops on a fresh manual trade).
+
+Demo journal entries remain attached to demo account 10047832 and
+never appear under the new real account.

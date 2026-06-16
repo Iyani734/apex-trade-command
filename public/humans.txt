@@ -1,0 +1,10 @@
+/* TEAM */
+Product: ForexAnalyzer Pro
+Contact: ianchomba734@gmail.com
+MQL5: https://www.mql5.com/en/users/65614798/
+
+/* SITE */
+Canonical URL: https://www.forexanalyzerpro.com/
+API URL: https://api.forexanalyzerpro.com/
+Language: English
+Stack: React, Vite, Supabase, Node.js, Socket.IO, MetaTrader 5 Expert Advisor

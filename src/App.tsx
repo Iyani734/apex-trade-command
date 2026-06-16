@@ -1,0 +1,63 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import DashboardLayout from "@/components/DashboardLayout";
+import DashboardPage from "@/pages/DashboardPage";
+import TradesPage from "@/pages/TradesPage";
+import AnalyticsPage from "@/pages/AnalyticsPage";
+import JournalPage from "@/pages/JournalPage";
+import StrategyDetailPage from "@/pages/StrategyDetailPage";
+import CopyPage from "@/pages/CopyPage";
+import AccountsPage from "@/pages/AccountsPage";
+import CommandsPage from "@/pages/CommandsPage";
+import SettingsPage from "@/pages/SettingsPage";
+import ConnectPage from "@/pages/ConnectPage";
+import AlertsPage from "@/pages/AlertsPage";
+import SharePage from "@/pages/SharePage";
+import LoginPage from "@/pages/LoginPage";
+import CalendarPage from "@/pages/CalendarPage";
+import PricingPage from "@/pages/PricingPage";
+import NotFound from "@/pages/NotFound";
+import { ConfirmDialogHost } from "@/components/ConfirmDialog";
+import { PromptDialogHost } from "@/components/PromptDialog";
+import { RequireAuth } from "@/lib/auth";
+
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <ConfirmDialogHost />
+      <PromptDialogHost />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/share/:token" element={<SharePage />} />
+          <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/trades" element={<TradesPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/journal" element={<JournalPage />} />
+            <Route path="/journal/strategy/:strategy/:setup" element={<StrategyDetailPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/copy" element={<CopyPage />} />
+            <Route path="/alerts" element={<AlertsPage />} />
+            <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/commands" element={<CommandsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/connect" element={<ConnectPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;

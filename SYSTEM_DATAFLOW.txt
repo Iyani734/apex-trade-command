@@ -1,0 +1,161 @@
+# TradeVault Pro — System Data Flow (v4.x — EA HTTP-PUSH)
+
+This document describes the data contract between the EA, the server, and this
+frontend. It must stay in sync with what the EA pushes and what the server emits.
+
+────────────────────────────────────────────────────────────────────────
+LAYERS
+────────────────────────────────────────────────────────────────────────
+1. EA (MetaTrader)  →  HTTP POST  →  Server
+2. Server  →  Processes & stores in memory + JSON files
+3. Frontend  ←  WebSocket (real-time)  +  REST (on-demand)  ←  Server
+
+The EA never calls WebRequest from OnTick / OnTrade. Everything goes through
+OnTimer() to avoid blocking the trading thread.
+
+────────────────────────────────────────────────────────────────────────
+EA → SERVER PUSHES
+────────────────────────────────────────────────────────────────────────
+POST /ea/live      every ~tick (target 30–80ms cadence)
+  {
+    accountId,
+    account: { balance, equity, margin, free_margin, profit,
+               peak_equity, max_drawdown_pct, current_drawdown_pct,
+               daily_start_balance, daily_pnl, daily_pnl_pct },
+    open_positions: [ { ticket, symbol, type, lots, open_price,
+                        current_price, sl, tp, profit, swap, pips,
+                        risk_reward, open_time_human, duration_minutes,
+                        session, day_of_week, is_copy_trade, is_manual,
+                        master_ticket } ],
+    pending_orders: [ ... ],
+    symbols: [ { symbol, bid, ask, spread } ]
+  }
+  → server emits "FULL_UPDATE"
+
+POST /ea/static    every 30s OR whenever a trade closes
+  { accountId, trade_history: [...], risk_config, copy_config, analytics }
+  → server emits "STATIC_UPDATE"
+
+POST /ea/status    every 2s (heartbeat)
+  { accountId, status: { ea_version, trading_paused, emergency_stop,
+                         tick_count, command_counts, daily_pnl, http_health,
+                         last_heartbeat, latency_ms, execution_avg_ms, uptime } }
+  → server emits "STATUS_UPDATE"
+
+GET  /ea/commands/:accountId   EA polls every 500ms
+  → server returns queued commands from the frontend
+
+────────────────────────────────────────────────────────────────────────
+SERVER → FRONTEND  (WebSocket — Socket.io v4)
+────────────────────────────────────────────────────────────────────────
+Default URL:  http://127.0.0.1:3000   (override with VITE_WS_URL)
+
+Every event has the envelope:
+  { type, data, accountId, timestamp }
+
+EVENT             TRIGGER                       DATA
+─────────────     ─────────────────────────     ─────────────────────────
+INIT              On client connect             { [accountId]: { accountId, online,
+                                                  config, eaStatus, data: <full> } }
+FULL_UPDATE       Every /ea/live push           Full processed dashboard object
+STATIC_UPDATE     Every /ea/static push         Same shape as FULL_UPDATE
+STATUS_UPDATE     Every /ea/status push         { accountId, status: {...} }
+EA_ONLINE         EA reconnects                 { accountId }
+EA_OFFLINE        EA times out                  { accountId }
+COMMAND_RESULT    EA executed a command         { accountId, result: { command_id,
+                                                  success, execution_ms, error? } }
+JOURNAL_UPDATE    Journal entry saved           { entry }
+alert_triggered   Price alert fired             { accountId, payload: { alertId,
+                                                  symbol, condition, value, price,
+                                                  triggeredAt, note } }
+ALERTS_UPDATED    Alert list saved              { accountId, alerts: [...] }
+symbol_missing    Symbol not in Market Watch    { accountId, symbol }
+
+────────────────────────────────────────────────────────────────────────
+SERVER → FRONTEND  (REST)
+────────────────────────────────────────────────────────────────────────
+Base:  http://127.0.0.1:3000   (override with VITE_API_URL=http://host:port/api)
+
+GET  /health
+GET  /api/accounts
+GET  /api/accounts/:id/dashboard       ← richest endpoint, full processed object
+GET  /api/accounts/:id/status
+GET  /api/accounts/:id/positions
+GET  /api/accounts/:id/history?symbol=&session=&day=&limit=&offset=
+GET  /api/accounts/:id/analytics
+GET  /api/debug
+GET  /api/journal                       POST /api/journal     DELETE /api/journal/:ticket
+
+POST /api/accounts/:id/open             { symbol, order_type, lots, sl?, tp? }
+POST /api/accounts/:id/close/:ticket
+POST /api/accounts/:id/close-all
+POST /api/accounts/:id/modify/:ticket   { sl?, tp? }
+POST /api/accounts/:id/partial-close/:ticket  { lots }
+POST /api/accounts/:id/breakeven/:ticket
+POST /api/accounts/:id/trail/:ticket    { trail_pips }
+POST /api/accounts/:id/pause
+POST /api/accounts/:id/resume
+POST /api/accounts/:id/command          { ...any custom command }
+
+GET  /api/alerts/:accountId
+POST /api/alerts/:accountId             { alerts: [...] }
+
+GET  /api/copy/pairs
+POST /api/copy/pairs
+PUT  /api/copy/pairs/:slaveAccountId
+DELETE /api/copy/pairs/:slaveAccountId
+
+────────────────────────────────────────────────────────────────────────
+DASHBOARD OBJECT SHAPE  (returned by /api/accounts/:id/dashboard
+                          AND emitted as the `data` field of FULL_UPDATE)
+────────────────────────────────────────────────────────────────────────
+{
+  meta: { account_config: { role, master_account, lot_multiplier }, ... },
+  account: { balance, equity, margin, free_margin, margin_level, profit,
+             peak_equity, max_drawdown_pct, current_drawdown_pct,
+             daily_start_balance, daily_pnl, daily_pnl_pct, account_type },
+  open_positions: [...],
+  pending_orders: [...],
+  trade_history:  [...],     // includes net_profit, entry_price, exit_price, is_win, commission
+  analytics: {
+    total_trades, wins, losses, win_rate, gross_profit, gross_loss, net_profit,
+    profit_factor, expectancy, avg_win, avg_loss, risk_reward_ratio,
+    avg_pips, avg_duration_minutes, best_trade, worst_trade,
+    equity_curve:      [ { index, timestamp, balance, cumulative_profit, is_win } ],
+    drawdown_curve:    [ { balance, peak, drawdown_pct, drawdown_abs } ],
+    session_stats:     [ { session, trades, win_rate, net_profit, profit_factor } ],
+    symbol_stats:      [ { symbol, trades, win_rate, net_profit, avg_pips } ],
+    day_of_week_stats: [ { day, trades, win_rate, net_profit } ],
+    streak_data:       { max_win_streak, max_loss_streak, current_streak },
+    period_returns:    { monthly: [...], weekly: [...], daily: { net_profit, return_pct } },
+    trade_distribution:[ { label, count } ]
+  },
+  insights: [ { type, severity, message } ],
+  server_meta: { ea_online, ws_clients, data_age_seconds }
+}
+
+────────────────────────────────────────────────────────────────────────
+FRONTEND STRATEGY  (already implemented)
+────────────────────────────────────────────────────────────────────────
+1. On page load: connect Socket.io → receive INIT (full snapshot of all accounts)
+2. Listen for FULL_UPDATE for live data (positions / equity / floating PnL)
+3. Listen for STATIC_UPDATE for analytics / history refresh
+4. Listen for STATUS_UPDATE / EA_ONLINE / EA_OFFLINE for connectivity banner
+5. Use REST only for: history filtering, journal writes, sending commands,
+   share-link bootstrap, alert CRUD
+6. Use server_meta.ea_online + data_age_seconds to detect stale data
+   without extra polling
+
+────────────────────────────────────────────────────────────────────────
+CHECKLIST FOR DEBUGGING "NO DATA"
+────────────────────────────────────────────────────────────────────────
+[ ] EA WebRequest URL is whitelisted in MT5: Tools → Options → Expert Advisors
+    → "Allow WebRequest for listed URL" → add http://127.0.0.1:3000
+[ ] Server is running on port 3000 (curl http://127.0.0.1:3000/health)
+[ ] EA log shows successful POST /ea/live (200 OK)
+[ ] GET http://127.0.0.1:3000/api/debug shows push counts incrementing
+[ ] Browser console shows: "[Socket.io] ✅ Connected"
+[ ] Browser receives INIT event with at least one accountId
+[ ] FULL_UPDATE arrives with envelope { type, data, accountId, timestamp }
+[ ] Frontend env (.env): VITE_API_URL=http://127.0.0.1:3000/api
+                         VITE_WS_URL=http://127.0.0.1:3000
