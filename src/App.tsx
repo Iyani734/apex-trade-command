@@ -20,6 +20,8 @@ import LoginPage from "@/pages/LoginPage";
 import CalendarPage from "@/pages/CalendarPage";
 import NewsPage from "@/features/news/NewsPage";
 import PricingPage from "@/pages/PricingPage";
+import CalculatorPage from "@/pages/CalculatorPage";
+import DataExportPage from "@/pages/DataExportPage";
 import NotFound from "@/pages/NotFound";
 import { ConfirmDialogHost } from "@/components/ConfirmDialog";
 import { PromptDialogHost } from "@/components/PromptDialog";
@@ -54,6 +56,8 @@ const App = () => (
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/connect" element={<ConnectPage />} />
             <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/calculator" element={<CalculatorPage />} />
+            <Route path="/data" element={<DataExportPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
