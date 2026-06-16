@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, TrendingUp, BarChart3, BookOpen,
-  Copy, Users, Terminal, Settings, Link2, Bell, Calendar, BadgeDollarSign,
+  Copy, Users, Terminal, Settings, Link2, Bell, Calendar, BadgeDollarSign, Newspaper,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -16,6 +16,7 @@ const mainNav = [
   { title: 'Trades', url: '/trades', icon: TrendingUp },
   { title: 'Analytics', url: '/analytics', icon: BarChart3 },
   { title: 'Calendar', url: '/calendar', icon: Calendar },
+  { title: 'News', url: '/news', icon: Newspaper },
   { title: 'Journal', url: '/journal', icon: BookOpen },
   { title: 'Alerts', url: '/alerts', icon: Bell },
 ];

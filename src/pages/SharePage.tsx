@@ -81,7 +81,7 @@ export default function SharePage() {
   const history = Array.isArray(snap.trade_history) ? snap.trade_history : [];
   const balance = n(account.balance);
   const equity = n(account.equity);
-  const runningPnl = positions.reduce((sum, p: any) => sum + n(p.profit ?? p.net_profit), 0);
+  const runningPnl: number = positions.reduce((sum: number, p: any) => sum + n(p.profit ?? p.net_profit), 0);
   const equityCurve = Array.isArray((analytics as any).equity_curve)
     ? (analytics as any).equity_curve.map((p: any, index: number) => ({
         date: p.timestamp_human || p.date || `#${index + 1}`,

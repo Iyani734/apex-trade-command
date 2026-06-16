@@ -18,6 +18,7 @@ import AlertsPage from "@/pages/AlertsPage";
 import SharePage from "@/pages/SharePage";
 import LoginPage from "@/pages/LoginPage";
 import CalendarPage from "@/pages/CalendarPage";
+import NewsPage from "@/features/news/NewsPage";
 import PricingPage from "@/pages/PricingPage";
 import NotFound from "@/pages/NotFound";
 import { ConfirmDialogHost } from "@/components/ConfirmDialog";
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/journal" element={<JournalPage />} />
             <Route path="/journal/strategy/:strategy/:setup" element={<StrategyDetailPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/news" element={<NewsPage />} />
             <Route path="/copy" element={<CopyPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/accounts" element={<AccountsPage />} />
