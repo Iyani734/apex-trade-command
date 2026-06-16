@@ -119,7 +119,8 @@ export default function NewsPage() {
   const reminderFor = (id: string) => reminders.find(r => r.eventId === id);
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="w-full min-h-screen space-y-6">
+
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
