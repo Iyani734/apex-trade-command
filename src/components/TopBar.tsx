@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { userPrefs } from '@/lib/userPrefs';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
+import { SessionIndicator } from '@/features/sessions/SessionIndicator';
 
 const HEADER_BROKER_CYCLE_MS = 10_000; // rotate every 10 seconds
 const HEADER_BROKERS = [
@@ -321,6 +322,7 @@ export function TopBar() {
         <HeaderBrokerSpot />
 
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        <SessionIndicator />
         {active && (
           <button
             onClick={() => setShareOpen(true)}
