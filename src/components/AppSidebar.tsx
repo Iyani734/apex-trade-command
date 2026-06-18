@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, TrendingUp, BarChart3, BookOpen,
   Copy, Users, Terminal, Settings, Link2, Bell, Calendar, BadgeDollarSign, Newspaper,
-  Calculator, Database,
+  Calculator, Database, Activity, Target, GitBranch, Users as UsersIcon,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -21,6 +21,13 @@ const mainNav = [
   { title: 'Journal', url: '/journal', icon: BookOpen },
   { title: 'Alerts', url: '/alerts', icon: Bell },
   { title: 'Calculator', url: '/calculator', icon: Calculator },
+];
+
+const insightsNav = [
+  { title: 'Strength Meter', url: '/strength', icon: Activity },
+  { title: 'Correlation', url: '/correlation', icon: GitBranch },
+  { title: 'Sentiment', url: '/sentiment', icon: UsersIcon },
+  { title: 'Plan & Goals', url: '/plan', icon: Target },
 ];
 
 const systemNav = [

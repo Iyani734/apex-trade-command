@@ -22,6 +22,10 @@ import NewsPage from "@/features/news/NewsPage";
 import PricingPage from "@/pages/PricingPage";
 import CalculatorPage from "@/pages/CalculatorPage";
 import DataExportPage from "@/pages/DataExportPage";
+import CurrencyStrengthPage from "@/features/strength/CurrencyStrengthPage";
+import TradingPlanPage from "@/features/plan/TradingPlanPage";
+import CorrelationMatrixPage from "@/features/correlation/CorrelationMatrixPage";
+import SentimentDashboardPage from "@/features/sentiment/SentimentDashboardPage";
 import NotFound from "@/pages/NotFound";
 import { ConfirmDialogHost } from "@/components/ConfirmDialog";
 import { PromptDialogHost } from "@/components/PromptDialog";
@@ -58,6 +62,10 @@ const App = () => (
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/calculator" element={<CalculatorPage />} />
             <Route path="/data" element={<DataExportPage />} />
+            <Route path="/strength" element={<CurrencyStrengthPage />} />
+            <Route path="/plan" element={<TradingPlanPage />} />
+            <Route path="/correlation" element={<CorrelationMatrixPage />} />
+            <Route path="/sentiment" element={<SentimentDashboardPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
