@@ -1,42 +1,68 @@
 import {
-  LayoutDashboard, TrendingUp, BarChart3, BookOpen,
-  Copy, Users, Terminal, Settings, Link2, Bell, Calendar, BadgeDollarSign, Newspaper,
-  Calculator, Database, Activity, Target, GitBranch, Users as UsersIcon,
-} from 'lucide-react';
-import { NavLink } from '@/components/NavLink';
+  LayoutDashboard,
+  TrendingUp,
+  BarChart3,
+  BookOpen,
+  Copy,
+  Users,
+  Terminal,
+  Settings,
+  Link2,
+  Bell,
+  Calendar,
+  Newspaper,
+  Calculator,
+  Database,
+  Activity,
+  Target,
+  GitBranch,
+  Users as UsersIcon,
+  LifeBuoy,
+} from "lucide-react";
+import { NavLink } from "@/components/NavLink";
 import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
-  SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  SidebarHeader, SidebarFooter, useSidebar,
-} from '@/components/ui/sidebar';
-import { useTradingStore } from '@/store/tradingStore';
-import { cn } from '@/lib/utils';
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarHeader,
+  SidebarFooter,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { useTradingStore } from "@/store/tradingStore";
+import { cn } from "@/lib/utils";
 
 const mainNav = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-  { title: 'Trades', url: '/trades', icon: TrendingUp },
-  { title: 'Analytics', url: '/analytics', icon: BarChart3 },
-  { title: 'Calendar', url: '/calendar', icon: Calendar },
-  { title: 'News', url: '/news', icon: Newspaper },
-  { title: 'Journal', url: '/journal', icon: BookOpen },
-  { title: 'Alerts', url: '/alerts', icon: Bell },
-  { title: 'Calculator', url: '/calculator', icon: Calculator },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Trades", url: "/trades", icon: TrendingUp },
+  { title: "Analytics", url: "/analytics", icon: BarChart3 },
+  { title: "Calendar", url: "/calendar", icon: Calendar },
+  { title: "News", url: "/news", icon: Newspaper },
+  { title: "Journal", url: "/journal", icon: BookOpen },
+  { title: "Alerts", url: "/alerts", icon: Bell },
+  { title: "Calculator", url: "/calculator", icon: Calculator },
 ];
 
 const insightsNav = [
-  { title: 'Strength Meter', url: '/strength', icon: Activity },
-  { title: 'Correlation', url: '/correlation', icon: GitBranch },
-  { title: 'Sentiment', url: '/sentiment', icon: UsersIcon },
-  { title: 'Plan & Goals', url: '/plan', icon: Target },
+  { title: "Strength Meter", url: "/strength", icon: Activity },
+  { title: "Correlation", url: "/correlation", icon: GitBranch },
+  { title: "Sentiment", url: "/sentiment", icon: UsersIcon },
+  { title: "Plan & Goals", url: "/plan", icon: Target },
 ];
 
 const systemNav = [
-  { title: 'Copy Trading', url: '/copy', icon: Copy },
-  { title: 'Accounts', url: '/accounts', icon: Users },
-  { title: 'Data & Export', url: '/data', icon: Database },
-  { title: 'Commands', url: '/commands', icon: Terminal },
-  { title: 'Pricing', url: '/pricing', icon: BadgeDollarSign },
-  { title: 'Settings', url: '/settings', icon: Settings },
+  { title: "Copy Trading", url: "/copy", icon: Copy },
+  { title: "Accounts", url: "/accounts", icon: Users },
+  { title: "Data & Export", url: "/data", icon: Database },
+  { title: "Commands", url: "/commands", icon: Terminal },
+  { title: "Support", url: "/support", icon: LifeBuoy },
+  // Pricing is hidden for now. Re-enable when the subscription page is ready.
+  // { title: "Pricing", url: "/pricing", icon: BadgeDollarSign },
+  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 /*
@@ -104,9 +130,7 @@ function SidebarBrokerAd({ collapsed }: { collapsed: boolean }) {
         const next = (current + 1) % exnessSidebarAds.length;
         try {
           sessionStorage.setItem('forexAnalyzer.sidebarAdIndex', String(next));
-        } catch {
-          // ignore
-        }
+        } catch {}
         return next;
       });
     }, SIDEBAR_AD_ROTATE_MS);
@@ -137,32 +161,44 @@ function SidebarBrokerAd({ collapsed }: { collapsed: boolean }) {
 
 export function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
-  const collapsed = state === 'collapsed';
+  const collapsed = state === "collapsed";
   const accounts = useTradingStore((s) => s.accounts);
   const activeId = useTradingStore((s) => s.activeAccountId);
-  const activeOnline = accounts.find((a) => a.id === activeId)?.status === 'ONLINE';
+  const activeOnline =
+    accounts.find((a) => a.id === activeId)?.status === "ONLINE";
+
   const closeMobileSidebar = () => {
     if (isMobile) setOpenMobile(false);
   };
 
-  const renderItem = (item: { title: string; url: string; icon: typeof LayoutDashboard }) => (
+  const renderItem = (item: {
+    title: string;
+    url: string;
+    icon: typeof LayoutDashboard;
+  }) => (
     <SidebarMenuItem key={item.title}>
       <SidebarMenuButton
         asChild
         tooltip={collapsed ? item.title : undefined}
-        className={cn(collapsed && 'mx-auto h-10 w-10 p-0')}
+        className={cn(collapsed && "mx-auto h-10 w-10 p-0")}
       >
         <NavLink
           to={item.url}
           end
           onClick={closeMobileSidebar}
           className={cn(
-            'flex items-center transition-colors hover:bg-secondary/50',
-            collapsed ? 'mx-auto h-10 w-10 justify-center rounded-xl p-0' : 'px-2',
+            "flex items-center transition-colors hover:bg-secondary/50",
+            collapsed
+              ? "mx-auto h-10 w-10 justify-center rounded-xl p-0"
+              : "px-2"
           )}
-          activeClassName={collapsed ? 'bg-primary/10 text-primary' : 'bg-primary/10 text-primary border-l-2 border-primary'}
+          activeClassName={
+            collapsed
+              ? "bg-primary/10 text-primary"
+              : "bg-primary/10 text-primary border-l-2 border-primary"
+          }
         >
-          <item.icon className={cn(collapsed ? 'h-5 w-5' : 'mr-2 h-4 w-4')} />
+          <item.icon className={cn(collapsed ? "h-5 w-5" : "mr-2 h-4 w-4")} />
           {!collapsed && <span>{item.title}</span>}
         </NavLink>
       </SidebarMenuButton>
@@ -171,15 +207,20 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/50">
-      <SidebarHeader className={cn('p-4', collapsed && 'px-0')}>
-        <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
+      <SidebarHeader className={cn("p-4", collapsed && "px-0")}>
+        <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
           <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
             <TrendingUp className="w-4 h-4 text-primary" />
           </div>
+
           {!collapsed && (
             <div>
-              <h1 className="text-sm font-bold tracking-tight text-foreground">ForexAnalyzer</h1>
-              <p className="text-[10px] text-primary font-mono uppercase tracking-widest">Pro</p>
+              <h1 className="text-sm font-bold tracking-tight text-foreground">
+                ForexAnalyzer
+              </h1>
+              <p className="text-[10px] text-primary font-mono uppercase tracking-widest">
+                Pro
+              </p>
             </div>
           )}
         </div>
@@ -218,17 +259,9 @@ export function AppSidebar() {
             <SidebarMenu>{systemNav.map(renderItem)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/*
-        {!collapsed && (
-          <div className="hidden min-h-0 flex-1 items-center justify-center px-3 py-3 md:flex">
-            <SidebarBrokerAd collapsed={collapsed} />
-          </div>
-        )}
-        */}
       </SidebarContent>
 
-      <SidebarFooter className={cn('p-3', collapsed && 'items-center px-0')}>
+      <SidebarFooter className={cn("p-3", collapsed && "items-center px-0")}>
         {collapsed ? (
           <NavLink
             to="/connect"
@@ -250,11 +283,16 @@ export function AppSidebar() {
             Connect Account
           </NavLink>
         )}
-        <div className={cn('flex items-center gap-2 mt-2', collapsed && 'justify-center')}>
-          <div className={`w-2 h-2 rounded-full ${activeOnline ? 'bg-success animate-pulse-glow' : 'bg-destructive'}`} />
+
+        <div className={cn("flex items-center gap-2 mt-2", collapsed && "justify-center")}>
+          <div
+            className={`w-2 h-2 rounded-full ${
+              activeOnline ? "bg-success animate-pulse-glow" : "bg-destructive"
+            }`}
+          />
           {!collapsed && (
             <span className="text-[10px] text-muted-foreground font-mono">
-              {activeOnline ? 'LIVE' : 'OFFLINE'}
+              {activeOnline ? "LIVE" : "OFFLINE"}
             </span>
           )}
         </div>

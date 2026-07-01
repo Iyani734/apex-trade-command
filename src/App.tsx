@@ -19,13 +19,16 @@ import SharePage from "@/pages/SharePage";
 import LoginPage from "@/pages/LoginPage";
 import CalendarPage from "@/pages/CalendarPage";
 import NewsPage from "@/features/news/NewsPage";
-import PricingPage from "@/pages/PricingPage";
+// Pricing is hidden for now. Restore this import and route when subscriptions are ready.
+// import PricingPage from "@/pages/PricingPage";
 import CalculatorPage from "@/pages/CalculatorPage";
 import DataExportPage from "@/pages/DataExportPage";
 import CurrencyStrengthPage from "@/features/strength/CurrencyStrengthPage";
 import TradingPlanPage from "@/features/plan/TradingPlanPage";
 import CorrelationMatrixPage from "@/features/correlation/CorrelationMatrixPage";
 import SentimentDashboardPage from "@/features/sentiment/SentimentDashboardPage";
+import SupportPage from "@/pages/SupportPage";
+import SupportAdminPage from "@/pages/SupportAdminPage";
 import NotFound from "@/pages/NotFound";
 import { ConfirmDialogHost } from "@/components/ConfirmDialog";
 import { PromptDialogHost } from "@/components/PromptDialog";
@@ -45,6 +48,7 @@ const App = () => (
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/share/:token" element={<SharePage />} />
+
           <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/trades" element={<TradesPage />} />
@@ -59,14 +63,20 @@ const App = () => (
             <Route path="/commands" element={<CommandsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/connect" element={<ConnectPage />} />
-            <Route path="/pricing" element={<PricingPage />} />
+            {/* <Route path="/pricing" element={<PricingPage />} /> */}
             <Route path="/calculator" element={<CalculatorPage />} />
             <Route path="/data" element={<DataExportPage />} />
+
             <Route path="/strength" element={<CurrencyStrengthPage />} />
             <Route path="/plan" element={<TradingPlanPage />} />
             <Route path="/correlation" element={<CorrelationMatrixPage />} />
             <Route path="/sentiment" element={<SentimentDashboardPage />} />
+
+            <Route path="/support" element={<SupportPage />} />
+            <Route path="/support/:ticketId" element={<SupportPage />} />
+            <Route path="/support-admin" element={<SupportAdminPage />} />
           </Route>
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

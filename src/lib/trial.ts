@@ -3,7 +3,7 @@ export const FREE_TRIAL_DAYS = 30;
 export const FREE_TRIAL_GRACE_DAYS = 3;
 export const FREE_TRIAL_WARNING_DAYS = 5;
 export const FREE_EA_URL = 'https://www.mql5.com/en/market/product/111375';
-export const PAID_EA_URL = 'https://www.mql5.com/en/market/product/136580?source=Site+Market+My+Products+Page';
+export const PAID_EA_URL = 'https://www.mql5.com/en/market/product/182969';
 
 export const TRIAL_DEVICE_ID_KEY = 'forexAnalyzerPro.trialDeviceId.v1';
 export const TRIAL_DEVICE_LOCK_KEY = 'forexAnalyzerPro.trialDeviceLock.v1';

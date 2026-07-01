@@ -30,7 +30,7 @@ Users sign in with Google through Supabase Auth. Each user account is isolated s
 ForexAnalyzer Pro offers a free trial version of the Expert Advisor and a paid version through MQL5.
 
 - Free trial EA: https://www.mql5.com/en/market/product/111375
-- Paid EA: https://www.mql5.com/en/market/product/136580?source=Site+Market+My+Products+Page
+- Paid EA: https://www.mql5.com/en/market/product/182969
 
 ## Public Pages And Files
 

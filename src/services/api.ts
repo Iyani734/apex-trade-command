@@ -84,6 +84,50 @@ export interface PublicShareResponse {
   };
 }
 
+export type SupportCategory =
+  | 'account_connection'
+  | 'ea_api_key'
+  | 'billing'
+  | 'trade_data'
+  | 'copy_trading'
+  | 'alerts'
+  | 'general';
+
+export type SupportPriority = 'low' | 'normal' | 'urgent';
+export type SupportStatus = 'open' | 'pending' | 'resolved' | 'closed';
+
+export interface SupportCustomer {
+  userId: string;
+  email: string;
+  name: string;
+  avatar?: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  userId: string;
+  accountId: string;
+  subject: string;
+  category: SupportCategory;
+  priority: SupportPriority;
+  status: SupportStatus;
+  assignedTo: string;
+  lastMessageAt: string;
+  createdAt: string;
+  updatedAt: string;
+  customer?: SupportCustomer;
+}
+
+export interface SupportMessage {
+  id: string;
+  ticketId: string;
+  userId: string;
+  senderRole: 'user' | 'agent';
+  body: string;
+  attachmentUrl?: string;
+  createdAt: string;
+}
+
 /**
  * EASettings — full remote configuration for the EA (v5.0.0).
  * Sent by GET /ea/settings/:accountId and accepted by PUT /api/accounts/:accountId/settings.
@@ -237,6 +281,70 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ alerts }),
       }),
+  },
+
+  support: {
+    listTickets: () =>
+      request<{ tickets: SupportTicket[] }>('/support/tickets'),
+    createTicket: (data: {
+      subject: string;
+      body: string;
+      category: SupportCategory;
+      priority: SupportPriority;
+      accountId?: string;
+    }) =>
+      request<{ ticket: SupportTicket; messages: SupportMessage[] }>('/support/tickets', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    getTicket: (ticketId: string) =>
+      request<{ ticket: SupportTicket; messages: SupportMessage[] }>(`/support/tickets/${ticketId}`),
+    sendMessage: (ticketId: string, body: string) =>
+      request<{ ticket: SupportTicket; message: SupportMessage }>(`/support/tickets/${ticketId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      }),
+    updateStatus: (ticketId: string, status: Extract<SupportStatus, 'open' | 'closed'>) =>
+      request<{ ticket: SupportTicket }>(`/support/tickets/${ticketId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }),
+    admin: {
+      listTickets: (params?: {
+        status?: SupportStatus | 'all';
+        priority?: SupportPriority | 'all';
+        category?: SupportCategory | 'all';
+      }) => {
+        const qs = new URLSearchParams();
+        if (params?.status && params.status !== 'all') qs.set('status', params.status);
+        if (params?.priority && params.priority !== 'all') qs.set('priority', params.priority);
+        if (params?.category && params.category !== 'all') qs.set('category', params.category);
+        const query = qs.toString();
+        return request<{ tickets: SupportTicket[]; agent: { userId: string; role: string; displayName: string } }>(
+          `/support/admin/tickets${query ? '?' + query : ''}`,
+        );
+      },
+      getTicket: (ticketId: string) =>
+        request<{ ticket: SupportTicket; messages: SupportMessage[]; agent: { userId: string; role: string; displayName: string } }>(
+          `/support/admin/tickets/${ticketId}`,
+        ),
+      sendMessage: (ticketId: string, body: string, status: SupportStatus = 'pending') =>
+        request<{ ticket: SupportTicket; message: SupportMessage }>(`/support/admin/tickets/${ticketId}/messages`, {
+          method: 'POST',
+          body: JSON.stringify({ body, status }),
+        }),
+      updateTicket: (ticketId: string, data: {
+        status?: SupportStatus;
+        priority?: SupportPriority;
+        category?: SupportCategory;
+        assignToMe?: boolean;
+        clearAssignee?: boolean;
+      }) =>
+        request<{ ticket: SupportTicket }>(`/support/admin/tickets/${ticketId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+        }),
+    },
   },
 
   // Journal endpoints
