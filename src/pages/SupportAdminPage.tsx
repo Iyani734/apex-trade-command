@@ -9,8 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { api, type SupportCategory, type SupportMessage, type SupportPriority, type SupportStatus, type SupportTicket } from '@/services/api';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
-// Admin insights is parked for now. Restore this import and JSX when needed.
-// import { AdminInsightsPanel } from '@/components/support/AdminInsightsPanel';
+import { AdminInsightsPanel } from '@/components/support/AdminInsightsPanel';
 
 type FilterStatus = SupportStatus | 'all';
 type FilterPriority = SupportPriority | 'all';
@@ -401,7 +400,7 @@ export default function SupportAdminPage() {
         </div>
       </div>
 
-      {/* <AdminInsightsPanel /> */}
+      <AdminInsightsPanel />
     </div>
   );
 }

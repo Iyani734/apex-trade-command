@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { userPrefs } from '@/lib/userPrefs';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
-import { SessionIndicator } from '@/features/sessions/SessionIndicator';
 import { ReferralInviteCard } from '@/components/ReferralInviteCard';
 
 const HEADER_BROKER_CYCLE_MS = 10_000; // rotate every 10 seconds
@@ -226,7 +225,7 @@ export function TopBar() {
   const renameAccount = useTradingStore((s) => s.renameAccount);
   const active = accounts.find((a) => a.id === activeId);
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user: authUser } = useAuth();
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -242,6 +241,22 @@ export function TopBar() {
   useEffect(() => {
     if (!switcherOpen) setUser(userPrefs.getUser());
   }, [switcherOpen]);
+
+  useEffect(() => {
+    const userKey = authUser?.id || authUser?.email || '';
+    if (!userKey) return;
+    const storageKey = `forexAnalyzer.inviteAwarenessShown.${userKey}`;
+    try {
+      if (sessionStorage.getItem(storageKey)) return;
+      sessionStorage.setItem(storageKey, 'true');
+    } catch {
+      // Still show it if session storage is unavailable.
+    }
+
+    setInviteOpen(true);
+    const timer = window.setTimeout(() => setInviteOpen(false), 20_000);
+    return () => window.clearTimeout(timer);
+  }, [authUser?.email, authUser?.id]);
 
   /*
    * Header broker advert rotation is disabled while ads are moved into the sidebar.
@@ -324,7 +339,6 @@ export function TopBar() {
         <HeaderBrokerSpot />
 
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-        <SessionIndicator />
         {active && (
           <button
             onClick={() => setShareOpen(true)}
