@@ -26,6 +26,7 @@ interface AuthContextValue {
   referral: (Omit<ReferralSummary, 'referrals'> & { accepted?: unknown }) | null;
   refreshLicense: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmailMagicLink: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -173,6 +174,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+      if (error) throw error;
+    },
+    signInWithEmailMagicLink: async (email: string) => {
+      mockMode.setEnabled(false);
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
         },
       });
       if (error) throw error;

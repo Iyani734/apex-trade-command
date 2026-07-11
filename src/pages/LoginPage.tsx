@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { TrendingUp, ArrowRight, Loader2, Eye } from 'lucide-react';
@@ -9,8 +9,11 @@ import { mockMode } from '@/hooks/useMockData';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, loading, signInWithGoogle, signInWithEmailMagicLink } = useAuth();
   const [signingIn, setSigningIn] = useState(false);
+  const [sendingMagicLink, setSendingMagicLink] = useState(false);
+  const [email, setEmail] = useState('');
+  const [magicLinkSentTo, setMagicLinkSentTo] = useState('');
 
   useEffect(() => {
     if (!loading && user) navigate('/dashboard', { replace: true });
@@ -24,6 +27,27 @@ export default function LoginPage() {
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Google sign-in failed. Please try again.');
       setSigningIn(false);
+    }
+  };
+
+  const handleEmailSignIn = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      toast.error('Enter your email address first.');
+      return;
+    }
+
+    setSendingMagicLink(true);
+    setMagicLinkSentTo('');
+    try {
+      await signInWithEmailMagicLink(normalizedEmail);
+      setMagicLinkSentTo(normalizedEmail);
+      toast.success('Magic link sent. Check your email to continue.');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Could not send the magic link. Please try again.');
+    } finally {
+      setSendingMagicLink(false);
     }
   };
 
@@ -73,7 +97,7 @@ export default function LoginPage() {
               </div>
               <h1 className="text-2xl font-bold tracking-tight">ForexAnalyzer Pro</h1>
               <p className="text-muted-foreground mt-1.5 text-sm">
-                Sign in securely with your Google account
+                Sign in securely with Google or an email magic link
               </p>
             </div>
 
@@ -87,6 +111,41 @@ export default function LoginPage() {
                 {signingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
                 Continue with Google
               </button>
+              <div className="relative flex items-center py-1">
+                <div className="h-px flex-1 bg-border/70" />
+                <span className="px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  or
+                </span>
+                <div className="h-px flex-1 bg-border/70" />
+              </div>
+              <form onSubmit={handleEmailSignIn} className="space-y-3">
+                <label htmlFor="login-email" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Email magic link
+                </label>
+                <input
+                  id="login-email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  disabled={loading || signingIn || sendingMagicLink}
+                  className="w-full rounded-lg border border-border bg-background/70 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+                <button
+                  type="submit"
+                  disabled={loading || signingIn || sendingMagicLink}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-secondary/70 text-foreground font-semibold hover:bg-secondary transition disabled:opacity-60"
+                >
+                  {sendingMagicLink ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                  Send magic link
+                </button>
+                {magicLinkSentTo ? (
+                  <p className="rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-xs leading-relaxed text-primary">
+                    Check {magicLinkSentTo} for your secure login link. You can close this page after opening the email.
+                  </p>
+                ) : null}
+              </form>
               <button
                 onClick={handleExploreDemo}
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-secondary/60 text-foreground font-semibold hover:bg-secondary transition"
@@ -95,7 +154,7 @@ export default function LoginPage() {
                 Explore the dashboard first
               </button>
               <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-                Each Google account sees only the MetaTrader accounts linked to that user.
+                Each signed-in account sees only the MetaTrader accounts linked to that user.
               </p>
             </div>
           </div>
