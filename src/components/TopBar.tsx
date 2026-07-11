@@ -528,7 +528,7 @@ export function TopBar() {
         />
       )}
       {inviteOpen && createPortal(
-        <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[9998] sm:left-auto sm:right-5 sm:w-[30rem]">
+        <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[9998] sm:left-auto sm:right-5 sm:w-[32rem] sm:max-w-[calc(100vw-2rem)]">
           <div className="pointer-events-auto relative">
             <button
               type="button"

@@ -38,62 +38,79 @@ export function ReferralInviteCard() {
   };
 
   return (
-    <div className="glass-card overflow-hidden p-4 sm:p-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+    <div className="overflow-hidden rounded-2xl border border-sky-300/30 bg-gradient-to-br from-sky-950 via-blue-950 to-slate-950 shadow-2xl shadow-sky-950/50">
+      <div className="space-y-4 p-4 sm:p-5">
+        <div className="flex min-w-0 items-start gap-3 pr-8">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-300/15 text-cyan-200 ring-1 ring-cyan-200/20">
             <Gift className="h-5 w-5" />
           </div>
-          <div className="min-w-0">
-            <h2 className="text-base font-bold tracking-tight">Invite traders. Earn free premium time.</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+          <div className="min-w-0 flex-1">
+            <div className="mb-2 inline-flex rounded-full bg-cyan-300/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+              Referral bonus
+            </div>
+            <h2 className="text-lg font-bold leading-tight text-white">
+              Invite traders and earn free premium time
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-sky-100/80">
               Every successful signup through your link adds {summary?.bonusDays || 7} free days to your ForexAnalyzer Pro access.
             </p>
           </div>
         </div>
 
         {user ? (
-          <div className="flex flex-col gap-2 sm:min-w-[22rem]">
-            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border/50 bg-background/40 px-3 py-2">
-              <span className="truncate font-mono text-xs text-muted-foreground">
+          <div className="space-y-3">
+            <div className="grid min-w-0 gap-2 rounded-xl border border-cyan-200/20 bg-slate-950/35 p-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+              <span className="min-w-0 truncate px-1 font-mono text-xs text-sky-100/75">
                 {summary?.link || 'Creating your invite link...'}
               </span>
-              <Button size="sm" variant="secondary" onClick={copyInvite} disabled={!summary?.link}>
+              <Button
+                size="sm"
+                onClick={copyInvite}
+                disabled={!summary?.link}
+                className="w-full bg-cyan-300 text-slate-950 hover:bg-cyan-200 sm:w-auto"
+              >
                 <Copy className="h-3.5 w-3.5" />
                 Copy
               </Button>
-              <Button size="icon" variant="ghost" onClick={() => void load()} disabled={loading} title="Refresh referrals">
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => void load()}
+                disabled={loading}
+                title="Refresh referrals"
+                className="hidden text-sky-100 hover:bg-white/10 hover:text-white sm:inline-flex"
+              >
                 <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
               </Button>
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Users className="h-3.5 w-3.5 text-primary" />
+            <div className="flex items-center gap-2 text-xs text-sky-100/70">
+              <Users className="h-3.5 w-3.5 text-cyan-200" />
               <span>
                 {summary?.referrals.length || 0} successful referral{summary?.referrals.length === 1 ? '' : 's'}
               </span>
             </div>
           </div>
         ) : (
-          <Button onClick={() => void signInWithGoogle()} className="lg:self-center">
+          <Button onClick={() => void signInWithGoogle()} className="w-full bg-cyan-300 text-slate-950 hover:bg-cyan-200">
             Sign in to get invite link
           </Button>
         )}
-      </div>
 
-      {user && summary?.referrals?.length ? (
-        <div className="mt-4 grid gap-2 border-t border-border/40 pt-4 sm:grid-cols-2 lg:grid-cols-3">
-          {summary.referrals.slice(0, 6).map((referral) => (
-            <div key={referral.id} className="rounded-lg bg-secondary/20 p-3">
-              <p className="truncate text-sm font-semibold">
-                {referral.referredUser?.name || referral.referredUser?.email || 'New trader'}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                +{referral.awardedDays} days · {new Date(referral.createdAt).toLocaleDateString()}
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : null}
+        {user && summary?.referrals?.length ? (
+          <div className="grid max-h-36 gap-2 overflow-y-auto border-t border-cyan-200/15 pt-3 sm:grid-cols-2">
+            {summary.referrals.slice(0, 6).map((referral) => (
+              <div key={referral.id} className="rounded-lg bg-white/10 p-3">
+                <p className="truncate text-sm font-semibold text-white">
+                  {referral.referredUser?.name || referral.referredUser?.email || 'New trader'}
+                </p>
+                <p className="mt-1 text-xs text-sky-100/70">
+                  +{referral.awardedDays} days - {new Date(referral.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
