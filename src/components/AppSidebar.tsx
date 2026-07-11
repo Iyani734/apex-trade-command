@@ -14,8 +14,8 @@ import {
   Calculator,
   Database,
   Activity,
-  Target,
-  GitBranch,
+  // Target,
+  // GitBranch,
   Users as UsersIcon,
   LifeBuoy,
   BadgeDollarSign,
@@ -51,9 +51,9 @@ const mainNav = [
 
 const insightsNav = [
   { title: "Strength Meter", url: "/strength", icon: Activity },
-  { title: "Correlation", url: "/correlation", icon: GitBranch },
+  // { title: "Correlation", url: "/correlation", icon: GitBranch },
   { title: "Sentiment", url: "/sentiment", icon: UsersIcon },
-  { title: "Plan & Goals", url: "/plan", icon: Target },
+  // { title: "Plan & Goals", url: "/plan", icon: Target },
 ];
 
 const systemNav = [

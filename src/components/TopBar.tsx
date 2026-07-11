@@ -245,18 +245,15 @@ export function TopBar() {
   useEffect(() => {
     const userKey = authUser?.id || authUser?.email || '';
     if (!userKey) return;
-    const storageKey = `forexAnalyzer.inviteAwarenessShown.${userKey}`;
-    try {
-      if (sessionStorage.getItem(storageKey)) return;
-      sessionStorage.setItem(storageKey, 'true');
-    } catch {
-      // Still show it if session storage is unavailable.
-    }
 
     setInviteOpen(true);
+  }, [authUser?.email, authUser?.id]);
+
+  useEffect(() => {
+    if (!inviteOpen) return;
     const timer = window.setTimeout(() => setInviteOpen(false), 20_000);
     return () => window.clearTimeout(timer);
-  }, [authUser?.email, authUser?.id]);
+  }, [inviteOpen]);
 
   /*
    * Header broker advert rotation is disabled while ads are moved into the sidebar.
@@ -531,25 +528,19 @@ export function TopBar() {
         />
       )}
       {inviteOpen && createPortal(
-        <>
-          <div
-            className="fixed inset-0 z-[9997]"
-            onClick={() => setInviteOpen(false)}
-          />
-          <div className="fixed inset-x-3 bottom-3 z-[9998] sm:left-auto sm:right-5 sm:w-[30rem]">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setInviteOpen(false)}
-                aria-label="Close invite popup"
-                className="absolute right-3 top-3 z-10 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              <ReferralInviteCard />
-            </div>
+        <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[9998] sm:left-auto sm:right-5 sm:w-[30rem]">
+          <div className="pointer-events-auto relative">
+            <button
+              type="button"
+              onClick={() => setInviteOpen(false)}
+              aria-label="Close invite popup"
+              className="absolute right-3 top-3 z-10 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <ReferralInviteCard />
           </div>
-        </>,
+        </div>,
         document.body
       )}
     </header>

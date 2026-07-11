@@ -23,8 +23,9 @@ import PricingPage from "@/pages/PricingPage";
 import CalculatorPage from "@/pages/CalculatorPage";
 import DataExportPage from "@/pages/DataExportPage";
 import CurrencyStrengthPage from "@/features/strength/CurrencyStrengthPage";
-import TradingPlanPage from "@/features/plan/TradingPlanPage";
-import CorrelationMatrixPage from "@/features/correlation/CorrelationMatrixPage";
+// Plan & Goals and Correlation are hidden for now.
+// import TradingPlanPage from "@/features/plan/TradingPlanPage";
+// import CorrelationMatrixPage from "@/features/correlation/CorrelationMatrixPage";
 import SentimentDashboardPage from "@/features/sentiment/SentimentDashboardPage";
 import SupportPage from "@/pages/SupportPage";
 import SupportAdminPage from "@/pages/SupportAdminPage";
@@ -67,8 +68,8 @@ const App = () => (
             <Route path="/data" element={<DataExportPage />} />
 
             <Route path="/strength" element={<CurrencyStrengthPage />} />
-            <Route path="/plan" element={<TradingPlanPage />} />
-            <Route path="/correlation" element={<CorrelationMatrixPage />} />
+            {/* <Route path="/plan" element={<TradingPlanPage />} /> */}
+            {/* <Route path="/correlation" element={<CorrelationMatrixPage />} /> */}
             <Route path="/sentiment" element={<SentimentDashboardPage />} />
 
             <Route path="/support" element={<SupportPage />} />
