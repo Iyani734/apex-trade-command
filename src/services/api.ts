@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { getOrCreateTrialDeviceId, type TrialLicense } from '@/lib/trial';
+import { getOrCreateTrialDeviceId, getTrialBrowserFingerprint, type TrialLicense } from '@/lib/trial';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.forexanalyzerpro.com/api';
 const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
@@ -53,6 +53,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (token) headers.set('Authorization', `Bearer ${token}`);
   const deviceId = getOrCreateTrialDeviceId();
   if (deviceId) headers.set('x-fap-device-id', deviceId);
+  const browserFingerprint = getTrialBrowserFingerprint();
+  if (browserFingerprint) headers.set('x-fap-device-fingerprint', browserFingerprint);
   const referralCode = getStoredReferralCode();
   if (referralCode) headers.set('x-fap-referral-code', referralCode);
 

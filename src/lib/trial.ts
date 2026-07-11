@@ -60,6 +60,49 @@ export function getOrCreateTrialDeviceId() {
   return next;
 }
 
+function safeString(value: unknown, maxLength = 160) {
+  return String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
+export function getTrialBrowserFingerprint() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return '';
+
+  const nav = navigator;
+  const screenInfo = window.screen;
+  const timezone = (() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    } catch {
+      return '';
+    }
+  })();
+
+  const signals: Record<string, string> = {
+    v: '1',
+    ua: safeString(nav.userAgent, 260),
+    platform: safeString(nav.platform),
+    vendor: safeString(nav.vendor),
+    language: safeString(nav.language),
+    languages: Array.isArray(nav.languages) ? nav.languages.slice(0, 8).join(',') : '',
+    timezone: safeString(timezone),
+    screen: `${screenInfo?.width || 0}x${screenInfo?.height || 0}x${screenInfo?.colorDepth || 0}`,
+    avail: `${screenInfo?.availWidth || 0}x${screenInfo?.availHeight || 0}`,
+    pixelRatio: safeString(window.devicePixelRatio || 1, 24),
+    cores: safeString(nav.hardwareConcurrency || '', 24),
+    memory: safeString((nav as Navigator & { deviceMemory?: number }).deviceMemory || '', 24),
+    touch: safeString(nav.maxTouchPoints || 0, 24),
+    cookies: safeString(nav.cookieEnabled ? '1' : '0', 4),
+  };
+
+  return Object.entries(signals)
+    .map(([key, value]) => `${key}=${safeString(value, 300)}`)
+    .join('|')
+    .slice(0, 2000);
+}
+
 export function readTrialDeviceLock(): TrialDeviceLock | null {
   if (!hasStorage()) return null;
   const raw = window.localStorage.getItem(TRIAL_DEVICE_LOCK_KEY);
@@ -131,6 +174,6 @@ export function createDeviceBlockedLicense(message?: string): TrialLicense {
     daysUntilAccessEnds: 0,
     freeEaUrl: FREE_EA_URL,
     paidEaUrl: PAID_EA_URL,
-    message: message || 'This browser is already linked to another ForexAnalyzer Pro trial account.',
+    message: message || 'This device or MetaTrader account is already linked to another ForexAnalyzer Pro trial account.',
   };
 }

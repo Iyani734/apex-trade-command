@@ -9,6 +9,7 @@ import {
   bindTrialDeviceToUser,
   createDeviceBlockedLicense,
   getOrCreateTrialDeviceId,
+  getTrialBrowserFingerprint,
   PAID_EA_URL,
   type TrialLicense,
 } from '@/lib/trial';
@@ -90,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (localDevice.blocked) {
       const message = localDevice.lock?.email
         ? `This browser is already linked to ${localDevice.lock.email}. Use that account or upgrade to a paid license.`
-        : 'This browser is already linked to another ForexAnalyzer Pro trial account.';
+        : 'This device is already linked to another ForexAnalyzer Pro trial account.';
       setLicense(createDeviceBlockedLicense(message));
       setDeviceBlocked(true);
       setSupportAgent(null);
@@ -105,6 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         Authorization: `Bearer ${nextSession.access_token}`,
       });
       if (deviceId) headers.set('x-fap-device-id', deviceId);
+      const browserFingerprint = getTrialBrowserFingerprint();
+      if (browserFingerprint) headers.set('x-fap-device-fingerprint', browserFingerprint);
       const referralCode = getStoredReferralCode();
       if (referralCode) headers.set('x-fap-referral-code', referralCode);
 
@@ -232,7 +235,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
           <p className="text-xs font-mono uppercase tracking-[0.2em] text-primary">Device trial locked</p>
           <h1 className="mt-3 text-2xl font-bold">Use the original trial account</h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            {license?.message || 'This browser is already linked to another ForexAnalyzer Pro trial account.'}
+            {license?.message || 'This device or MetaTrader account is already linked to another ForexAnalyzer Pro trial account.'}
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <a
