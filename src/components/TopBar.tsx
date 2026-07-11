@@ -17,15 +17,17 @@ const HEADER_BROKERS = [
     id: 'icmarkets',
     name: 'IC Markets',
     href: 'https://www.icmarkets.com/global/en/?camp=82798',
-    src: '/icmarkets2.png',
-    imageClassName: 'h-14 sm:h-16',
+    src: 'https://promo.icmarkets.com/Logos/2021/400x110/BAN_ICM_white_400x110.png',
+    fallbackSrc: '/icmarkets2.png',
+    imageClassName: 'h-8 sm:h-10',
   },
   {
     id: 'exness',
     name: 'Exness',
     href: 'https://one.exnessonelink.com/a/fhc3i952hn',
-    src: '/exness5.jpg',
-    imageClassName: 'h-12 sm:h-14',
+    src: '/Exness_Logo_White_Header.png',
+    fallbackSrc: '/Exness_Logo_White_Clear.png',
+    imageClassName: 'h-8 sm:h-10',
   },
 ] as const;
 
@@ -65,8 +67,14 @@ function HeaderBrokerSpot() {
           src={broker.src}
           alt={broker.name}
           referrerPolicy="no-referrer"
+          onError={(event) => {
+            const fallback = broker.fallbackSrc;
+            if (fallback && !event.currentTarget.src.endsWith(fallback)) {
+              event.currentTarget.src = fallback;
+            }
+          }}
           style={{ transition: 'opacity 0.4s ease', opacity: visible ? 1 : 0 }}
-          className="h-10 min-w-0 max-w-[240px] object-contain drop-shadow py-1"
+          className={`${broker.imageClassName} min-w-0 max-w-[260px] object-contain drop-shadow`}
         />
       </a>
     </div>
