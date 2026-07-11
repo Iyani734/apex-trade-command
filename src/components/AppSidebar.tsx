@@ -18,6 +18,7 @@ import {
   GitBranch,
   Users as UsersIcon,
   LifeBuoy,
+  BadgeDollarSign,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -35,6 +36,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useTradingStore } from "@/store/tradingStore";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 const mainNav = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -60,8 +62,7 @@ const systemNav = [
   { title: "Data & Export", url: "/data", icon: Database },
   { title: "Commands", url: "/commands", icon: Terminal },
   { title: "Support", url: "/support", icon: LifeBuoy },
-  // Pricing is hidden for now. Re-enable when the subscription page is ready.
-  // { title: "Pricing", url: "/pricing", icon: BadgeDollarSign },
+  { title: "Pricing", url: "/pricing", icon: BadgeDollarSign },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -161,6 +162,7 @@ function SidebarBrokerAd({ collapsed }: { collapsed: boolean }) {
 
 export function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
+  const { supportAgent } = useAuth();
   const collapsed = state === "collapsed";
   const accounts = useTradingStore((s) => s.accounts);
   const activeId = useTradingStore((s) => s.activeAccountId);
@@ -170,6 +172,12 @@ export function AppSidebar() {
   const closeMobileSidebar = () => {
     if (isMobile) setOpenMobile(false);
   };
+
+  const resolvedSystemNav = systemNav.map((item) =>
+    item.title === "Support"
+      ? { ...item, url: supportAgent ? "/support-admin" : "/support" }
+      : item
+  );
 
   const renderItem = (item: {
     title: string;
@@ -256,7 +264,7 @@ export function AppSidebar() {
             </SidebarGroupLabel>
           )}
           <SidebarGroupContent>
-            <SidebarMenu>{systemNav.map(renderItem)}</SidebarMenu>
+            <SidebarMenu>{resolvedSystemNav.map(renderItem)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

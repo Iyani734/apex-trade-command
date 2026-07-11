@@ -6,6 +6,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useMockData, mockMode } from '@/hooks/useMockData';
 import { JournalPromptModal } from '@/components/JournalPromptModal';
 import { TrialNotice } from '@/components/TrialNotice';
+import { UXFeedbackPrompt } from '@/components/UXFeedbackPrompt';
 
 function LiveDataLoader() {
   useWebSocket();
@@ -32,6 +33,7 @@ export default function DashboardLayout() {
         </div>
         <JournalPromptModal />
         <TrialNotice />
+        <UXFeedbackPrompt />
       </div>
     </SidebarProvider>
   );

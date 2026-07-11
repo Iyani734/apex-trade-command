@@ -4,6 +4,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { userPrefs } from '@/lib/userPrefs';
 import { mockMode } from '@/hooks/useMockData';
+import { getStoredReferralCode, storeReferralCode, type ReferralSummary, type SupportAgent } from '@/services/api';
 import {
   bindTrialDeviceToUser,
   createDeviceBlockedLicense,
@@ -21,6 +22,8 @@ interface AuthContextValue {
   license: TrialLicense | null;
   licenseLoading: boolean;
   deviceBlocked: boolean;
+  supportAgent: SupportAgent | null;
+  referral: (Omit<ReferralSummary, 'referrals'> & { accepted?: unknown }) | null;
   refreshLicense: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -58,11 +61,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [license, setLicense] = useState<TrialLicense | null>(null);
   const [licenseLoading, setLicenseLoading] = useState(false);
   const [deviceBlocked, setDeviceBlocked] = useState(false);
+  const [supportAgent, setSupportAgent] = useState<SupportAgent | null>(null);
+  const [referral, setReferral] = useState<AuthContextValue['referral']>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('ref') || params.get('invite') || params.get('referral');
+    if (code) storeReferralCode(code);
+  }, []);
 
   const loadLicenseForSession = useCallback(async (nextSession: Session | null) => {
     if (!nextSession?.user) {
       setLicense(null);
       setDeviceBlocked(false);
+      setSupportAgent(null);
+      setReferral(null);
       setLicenseLoading(false);
       return;
     }
@@ -79,6 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : 'This browser is already linked to another ForexAnalyzer Pro trial account.';
       setLicense(createDeviceBlockedLicense(message));
       setDeviceBlocked(true);
+      setSupportAgent(null);
+      setReferral(null);
       setLicenseLoading(false);
       return;
     }
@@ -89,16 +104,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         Authorization: `Bearer ${nextSession.access_token}`,
       });
       if (deviceId) headers.set('x-fap-device-id', deviceId);
+      const referralCode = getStoredReferralCode();
+      if (referralCode) headers.set('x-fap-referral-code', referralCode);
 
       const res = await fetch(`${API_BASE}/auth/me`, { headers });
       if (!res.ok) throw new Error(`License request failed: ${res.status}`);
-      const data = await res.json() as { license?: TrialLicense };
+      const data = await res.json() as {
+        license?: TrialLicense;
+        supportAgent?: SupportAgent | null;
+        referral?: AuthContextValue['referral'];
+      };
       setLicense(data.license || null);
       setDeviceBlocked(Boolean(data.license?.deviceBlocked));
+      setSupportAgent(data.supportAgent || null);
+      setReferral(data.referral || null);
     } catch (error) {
       console.warn('[Auth] Could not load license status', error);
       setLicense(null);
       setDeviceBlocked(false);
+      setSupportAgent(null);
+      setReferral(null);
     } finally {
       setLicenseLoading(false);
     }
@@ -139,8 +164,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     license,
     licenseLoading,
     deviceBlocked,
+    supportAgent,
+    referral,
     refreshLicense,
     signInWithGoogle: async () => {
+      mockMode.setEnabled(false);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -155,8 +183,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setLicense(null);
       setDeviceBlocked(false);
+      setSupportAgent(null);
+      setReferral(null);
+      mockMode.setEnabled(true);
     },
-  }), [deviceBlocked, license, licenseLoading, loading, refreshLicense, session]);
+  }), [deviceBlocked, license, licenseLoading, loading, referral, refreshLicense, session, supportAgent]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -168,11 +199,11 @@ export function useAuth() {
 }
 
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { user, loading, license, licenseLoading, deviceBlocked, signOut } = useAuth();
+  const { user, loading, license, deviceBlocked, signOut } = useAuth();
   const location = useLocation();
   const isDemo = mockMode.isEnabled();
 
-  if (loading || (!!user && licenseLoading)) {
+  if (loading && !isDemo) {
     return (
       <div className="min-h-screen grid place-items-center bg-background text-muted-foreground">
         Loading...
@@ -180,7 +211,9 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!user && !isDemo) return <Navigate to="/login" replace state={{ from: location }} />;
+  if (!user && !isDemo) {
+    mockMode.setEnabled(true);
+  }
   if (!isDemo && deviceBlocked) {
     return (
       <div className="min-h-screen grid place-items-center bg-background px-4">

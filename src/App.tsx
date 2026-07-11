@@ -19,8 +19,7 @@ import SharePage from "@/pages/SharePage";
 import LoginPage from "@/pages/LoginPage";
 import CalendarPage from "@/pages/CalendarPage";
 import NewsPage from "@/features/news/NewsPage";
-// Pricing is hidden for now. Restore this import and route when subscriptions are ready.
-// import PricingPage from "@/pages/PricingPage";
+import PricingPage from "@/pages/PricingPage";
 import CalculatorPage from "@/pages/CalculatorPage";
 import DataExportPage from "@/pages/DataExportPage";
 import CurrencyStrengthPage from "@/features/strength/CurrencyStrengthPage";
@@ -63,7 +62,7 @@ const App = () => (
             <Route path="/commands" element={<CommandsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/connect" element={<ConnectPage />} />
-            {/* <Route path="/pricing" element={<PricingPage />} /> */}
+            <Route path="/pricing" element={<PricingPage />} />
             <Route path="/calculator" element={<CalculatorPage />} />
             <Route path="/data" element={<DataExportPage />} />
 

@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { api, type SupportCategory, type SupportMessage, type SupportPriority, type SupportTicket } from '@/services/api';
 import { useTradingStore } from '@/store/tradingStore';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth';
 
 const categoryLabels: Record<SupportCategory, string> = {
   account_connection: 'Account connection',
@@ -50,6 +51,7 @@ const formatTime = (value?: string) => {
 export default function SupportPage() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
+  const { user, signInWithGoogle } = useAuth();
   const accounts = useTradingStore((s) => s.accounts);
   const activeAccountId = useTradingStore((s) => s.activeAccountId);
 
@@ -106,12 +108,17 @@ export default function SupportPage() {
   }, []);
 
   useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     void loadTickets();
     const timer = window.setInterval(() => void loadTickets(true), 15000);
     return () => window.clearInterval(timer);
-  }, [loadTickets]);
+  }, [loadTickets, user]);
 
   useEffect(() => {
+    if (!user) return;
     if (!ticketId) {
       setActiveTicket(null);
       setMessages([]);
@@ -120,7 +127,7 @@ export default function SupportPage() {
     void loadThread(ticketId);
     const timer = window.setInterval(() => void loadThread(ticketId, true), 6000);
     return () => window.clearInterval(timer);
-  }, [loadThread, ticketId]);
+  }, [loadThread, ticketId, user]);
 
   const createTicket = async (event: FormEvent) => {
     event.preventDefault();
@@ -185,6 +192,23 @@ export default function SupportPage() {
       toast.error(error?.message || 'Could not update ticket');
     }
   };
+
+  if (!user) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center justify-center">
+        <div className="glass-card p-8 text-center">
+          <LifeBuoy className="mx-auto mb-4 h-10 w-10 text-primary" />
+          <h1 className="text-2xl font-bold tracking-tight">Sign in for support</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            You can explore ForexAnalyzer Pro in demo mode, but support tickets need a Google account so we can reply to you privately.
+          </p>
+          <Button className="mt-6" onClick={() => void signInWithGoogle()}>
+            Sign in with Google
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

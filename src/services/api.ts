@@ -3,6 +3,7 @@ import { getOrCreateTrialDeviceId, type TrialLicense } from '@/lib/trial';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.forexanalyzerpro.com/api';
 const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
+const REFERRAL_STORAGE_KEY = 'forexAnalyzer.referralCode';
 
 let cachedAccessToken: string | null | undefined;
 let tokenLoad: Promise<string | null> | null = null;
@@ -11,6 +12,28 @@ supabase.auth.onAuthStateChange((_event, session) => {
   cachedAccessToken = session?.access_token || null;
   tokenLoad = null;
 });
+
+export function getStoredReferralCode() {
+  try {
+    return (localStorage.getItem(REFERRAL_STORAGE_KEY) || '').trim().toUpperCase();
+  } catch {
+    return '';
+  }
+}
+
+export function storeReferralCode(rawCode: string | null | undefined) {
+  const code = String(rawCode || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_-]/g, '')
+    .slice(0, 32);
+  if (!code) return;
+  try {
+    localStorage.setItem(REFERRAL_STORAGE_KEY, code);
+  } catch {
+    // Ignore storage failures; the referral still works if the URL is present during auth.
+  }
+}
 
 export async function getAccessToken(): Promise<string | null> {
   if (cachedAccessToken !== undefined) return cachedAccessToken;
@@ -30,6 +53,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (token) headers.set('Authorization', `Bearer ${token}`);
   const deviceId = getOrCreateTrialDeviceId();
   if (deviceId) headers.set('x-fap-device-id', deviceId);
+  const referralCode = getStoredReferralCode();
+  if (referralCode) headers.set('x-fap-referral-code', referralCode);
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -128,6 +153,67 @@ export interface SupportMessage {
   createdAt: string;
 }
 
+export interface SupportAgent {
+  userId: string;
+  role: string;
+  displayName: string;
+}
+
+export interface ReferralRecord {
+  id: string;
+  referrerUserId: string;
+  referredUserId: string;
+  referralCode: string;
+  awardedDays: number;
+  awardedAt: string;
+  createdAt: string;
+  referredUser?: SupportCustomer;
+}
+
+export interface ReferralSummary {
+  code: string | null;
+  link: string | null;
+  bonusDays: number;
+  referrals: ReferralRecord[];
+}
+
+export interface AdminClientOverview {
+  user_id: string;
+  email?: string;
+  full_name?: string;
+  nickname?: string;
+  plan_mode?: string;
+  license_status?: string;
+  trial_started_at?: string;
+  trial_ends_at?: string;
+  grace_ends_at?: string;
+  paid_until?: string;
+  account_id?: string;
+  connection_method?: string;
+  broker?: string;
+  account_role?: string;
+  balance?: number | string | null;
+  equity?: number | string | null;
+  open_trades?: number | string | null;
+  closed_trades?: number | string | null;
+  ea_status?: string | null;
+  last_seen_at?: string | null;
+  snapshot_updated_at?: string | null;
+}
+
+export interface FeedbackResponse {
+  id: string;
+  userId?: string;
+  email?: string;
+  name?: string;
+  sessionId?: string;
+  pagePath?: string;
+  score?: number;
+  responses: Record<string, unknown>;
+  userAgent?: string;
+  createdAt: string;
+}
+
 /**
  * EASettings — full remote configuration for the EA (v5.0.0).
  * Sent by GET /ea/settings/:accountId and accepted by PUT /api/accounts/:accountId/settings.
@@ -183,8 +269,32 @@ export const api = {
   health: () => request<{ status: string; version: string; accounts: number; supabase_database?: boolean }>('/health'),
 
   auth: {
-    me: () => request<{ user: { id: string; email: string; name: string; avatar?: string }; eaKey: { key_prefix: string; created_at: string } | null; license: TrialLicense }>('/auth/me'),
+    me: () => request<{
+      user: { id: string; email: string; name: string; avatar?: string };
+      eaKey: { key_prefix: string; created_at: string } | null;
+      license: TrialLicense;
+      supportAgent: SupportAgent | null;
+      referral: Omit<ReferralSummary, 'referrals'> & { accepted?: ReferralRecord | null };
+    }>('/auth/me'),
     rotateEaKey: () => request<{ apiKey: string; keyPrefix: string; message: string }>('/auth/ea-key/rotate', { method: 'POST' }),
+  },
+
+  referrals: {
+    me: () => request<ReferralSummary>('/referrals/me'),
+  },
+
+  feedback: {
+    submit: (data: {
+      score?: number;
+      responses: Record<string, unknown>;
+      sessionId?: string;
+      pagePath?: string;
+      email?: string;
+    }) =>
+      request<{ success: boolean }>('/public/feedback', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   },
 
   share: {
@@ -344,6 +454,10 @@ export const api = {
           method: 'PATCH',
           body: JSON.stringify(data),
         }),
+      listUsers: () =>
+        request<{ users: AdminClientOverview[]; agent: SupportAgent }>('/support/admin/users'),
+      listFeedback: () =>
+        request<{ feedback: FeedbackResponse[]; agent: SupportAgent }>('/support/admin/feedback'),
     },
   },
 

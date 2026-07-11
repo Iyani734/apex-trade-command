@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useTradingStore } from '@/store/tradingStore';
-import { ChevronDown, Pencil, Check, Share2, X, LogIn, LogOut, User as UserIcon, Clock } from 'lucide-react';
+import { ChevronDown, Pencil, Check, Share2, X, LogIn, LogOut, User as UserIcon, Clock, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ShareLinkDialog } from '@/components/share/ShareLinkDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -10,6 +10,7 @@ import { userPrefs } from '@/lib/userPrefs';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { SessionIndicator } from '@/features/sessions/SessionIndicator';
+import { ReferralInviteCard } from '@/components/ReferralInviteCard';
 
 const HEADER_BROKER_CYCLE_MS = 10_000; // rotate every 10 seconds
 const HEADER_BROKERS = [
@@ -231,6 +232,7 @@ export function TopBar() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [shareOpen, setShareOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [user, setUser] = useState(() => userPrefs.getUser());
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const usageTime = useTotalUsageTime(user?.email || 'guest');
@@ -273,7 +275,7 @@ export function TopBar() {
     setUser(null);
     setUserMenuOpen(false);
     toast.success('Signed out');
-    navigate('/login');
+    navigate('/dashboard');
   };
 
   return (
@@ -332,6 +334,13 @@ export function TopBar() {
             <Share2 className="w-3.5 h-3.5" /> Share
           </button>
         )}
+        <button
+          onClick={() => setInviteOpen(true)}
+          title="Invite traders"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-xs font-medium transition-colors"
+        >
+          <Gift className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Invite</span>
+        </button>
 
         <div className="hidden lg:flex items-center gap-1.5 text-xs text-muted-foreground">
           <Clock className="w-3.5 h-3.5" />
@@ -506,6 +515,28 @@ export function TopBar() {
           open={shareOpen}
           onClose={() => setShareOpen(false)}
         />
+      )}
+      {inviteOpen && createPortal(
+        <>
+          <div
+            className="fixed inset-0 z-[9997]"
+            onClick={() => setInviteOpen(false)}
+          />
+          <div className="fixed inset-x-3 bottom-3 z-[9998] sm:left-auto sm:right-5 sm:w-[30rem]">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setInviteOpen(false)}
+                aria-label="Close invite popup"
+                className="absolute right-3 top-3 z-10 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <ReferralInviteCard />
+            </div>
+          </div>
+        </>,
+        document.body
       )}
     </header>
   );

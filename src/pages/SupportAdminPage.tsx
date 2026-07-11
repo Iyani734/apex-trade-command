@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LifeBuoy, RefreshCw, Send, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { api, type SupportCategory, type SupportMessage, type SupportPriority, type SupportStatus, type SupportTicket } from '@/services/api';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth';
+// Admin insights is parked for now. Restore this import and JSX when needed.
+// import { AdminInsightsPanel } from '@/components/support/AdminInsightsPanel';
 
 type FilterStatus = SupportStatus | 'all';
 type FilterPriority = SupportPriority | 'all';
@@ -55,6 +59,10 @@ const formatTime = (value?: string) => {
 };
 
 export default function SupportAdminPage() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTicketId = searchParams.get('ticketId');
+  const { user, supportAgent, loading: authLoading } = useAuth();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTicket, setActiveTicket] = useState<SupportTicket | null>(null);
@@ -76,22 +84,31 @@ export default function SupportAdminPage() {
   );
 
   const loadTickets = useCallback(async (quiet = false) => {
+    if (!supportAgent) return;
     try {
       if (!quiet) setLoading(true);
       setAccessDenied(false);
       const res = await api.support.admin.listTickets({ status, priority, category });
       setAgentName(res.agent.displayName);
       setTickets(res.tickets);
-      setSelectedId((current) => current || res.tickets[0]?.id || null);
+      setSelectedId((current) => {
+        if (current && res.tickets.some((ticket) => ticket.id === current)) return current;
+        if (requestedTicketId && res.tickets.some((ticket) => ticket.id === requestedTicketId)) return requestedTicketId;
+        return res.tickets[0]?.id || null;
+      });
     } catch (error: any) {
-      if (String(error?.message || '').includes('403')) setAccessDenied(true);
+      if (String(error?.message || '').includes('403')) {
+        setAccessDenied(true);
+        navigate('/support', { replace: true });
+      }
       else toast.error(error?.message || 'Could not load support tickets');
     } finally {
       setLoading(false);
     }
-  }, [category, priority, status]);
+  }, [category, navigate, priority, requestedTicketId, status, supportAgent]);
 
   const loadThread = useCallback(async (id: string, quiet = false) => {
+    if (!supportAgent) return;
     try {
       if (!quiet) setThreadLoading(true);
       const res = await api.support.admin.getTicket(id);
@@ -105,15 +122,24 @@ export default function SupportAdminPage() {
     } finally {
       setThreadLoading(false);
     }
-  }, []);
+  }, [supportAgent]);
 
   useEffect(() => {
+    if (!authLoading && (!user || !supportAgent)) {
+      navigate('/support', { replace: true });
+      return;
+    }
+  }, [authLoading, navigate, supportAgent, user]);
+
+  useEffect(() => {
+    if (authLoading || !supportAgent) return;
     void loadTickets();
     const timer = window.setInterval(() => void loadTickets(true), 15000);
     return () => window.clearInterval(timer);
-  }, [loadTickets]);
+  }, [authLoading, loadTickets, supportAgent]);
 
   useEffect(() => {
+    if (authLoading || !supportAgent) return;
     if (!selectedId) {
       setActiveTicket(null);
       setMessages([]);
@@ -122,7 +148,7 @@ export default function SupportAdminPage() {
     void loadThread(selectedId);
     const timer = window.setInterval(() => void loadThread(selectedId, true), 6000);
     return () => window.clearInterval(timer);
-  }, [loadThread, selectedId]);
+  }, [authLoading, loadThread, selectedId, supportAgent]);
 
   const sendReply = async (event: FormEvent) => {
     event.preventDefault();
@@ -235,7 +261,10 @@ export default function SupportAdminPage() {
             {tickets.map((ticket) => (
               <button
                 key={ticket.id}
-                onClick={() => setSelectedId(ticket.id)}
+                  onClick={() => {
+                    setSelectedId(ticket.id);
+                    setSearchParams({ ticketId: ticket.id });
+                  }}
                 className={cn(
                   'mb-2 w-full rounded-lg border p-3 text-left transition-colors hover:bg-secondary/30',
                   ticket.id === selectedId ? 'border-primary/60 bg-primary/10' : 'border-border/40 bg-secondary/10',
@@ -371,6 +400,8 @@ export default function SupportAdminPage() {
           )}
         </div>
       </div>
+
+      {/* <AdminInsightsPanel /> */}
     </div>
   );
 }
