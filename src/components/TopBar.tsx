@@ -236,11 +236,16 @@ export function TopBar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const usageTime = useTotalUsageTime(user?.email || 'guest');
   const activeOnline = active?.status === 'ONLINE';
+  const displayUser = authUser ? user : null;
 
   // Refresh local user when switcher closes (in case settings changed)
   useEffect(() => {
-    if (!switcherOpen) setUser(userPrefs.getUser());
-  }, [switcherOpen]);
+    if (!switcherOpen) setUser(authUser ? userPrefs.getUser() : null);
+  }, [authUser, switcherOpen]);
+
+  useEffect(() => {
+    setUser(authUser ? userPrefs.getUser() : null);
+  }, [authUser?.email, authUser?.id]);
 
   useEffect(() => {
     const userKey = authUser?.id || authUser?.email || '';
@@ -376,13 +381,13 @@ export function TopBar() {
 
         {/* User chip */}
         <div className="relative">
-          {user ? (
+          {displayUser ? (
             <button
               onClick={() => setUserMenuOpen((o) => !o)}
               className="flex items-center gap-2 pl-1 pr-2 sm:pr-3 py-1 rounded-full bg-secondary/50 hover:bg-secondary transition-colors"
             >
-              <UserAvatar user={user} />
-              <span className="hidden sm:inline text-xs font-medium max-w-[120px] truncate">{user.nickname}</span>
+              <UserAvatar user={displayUser} />
+              <span className="hidden sm:inline text-xs font-medium max-w-[120px] truncate">{displayUser.nickname}</span>
             </button>
           ) : (
             <button
@@ -393,7 +398,7 @@ export function TopBar() {
             </button>
           )}
 
-          {user && userMenuOpen && createPortal(
+          {displayUser && userMenuOpen && createPortal(
             <>
               <div
                 className="fixed inset-0 z-[9998]"
@@ -404,10 +409,10 @@ export function TopBar() {
                 style={{ backgroundColor: 'hsl(225 30% 10%)', backdropFilter: 'none' }}
               >
                 <div className="flex items-center gap-3 px-1 pb-3 border-b border-border/50">
-                  <UserAvatar user={user} size="md" />
+                  <UserAvatar user={displayUser} size="md" />
                   <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{user.nickname}</div>
-                    <div className="text-[11px] text-muted-foreground truncate">{user.email}</div>
+                    <div className="text-sm font-medium truncate">{displayUser.nickname}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{displayUser.email}</div>
                   </div>
                 </div>
                 <button

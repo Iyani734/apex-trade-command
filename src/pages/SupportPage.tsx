@@ -51,7 +51,7 @@ const formatTime = (value?: string) => {
 export default function SupportPage() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
-  const { user, signInWithGoogle } = useAuth();
+  const { user } = useAuth();
   const accounts = useTradingStore((s) => s.accounts);
   const activeAccountId = useTradingStore((s) => s.activeAccountId);
 
@@ -200,10 +200,10 @@ export default function SupportPage() {
           <LifeBuoy className="mx-auto mb-4 h-10 w-10 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Sign in for support</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            You can explore ForexAnalyzer Pro in demo mode, but support tickets need a Google account so we can reply to you privately.
+            You can explore ForexAnalyzer Pro in demo mode, but support tickets need a signed-in account so we can reply to you privately.
           </p>
-          <Button className="mt-6" onClick={() => void signInWithGoogle()}>
-            Sign in with Google
+          <Button className="mt-6" onClick={() => navigate('/login')}>
+            Sign in
           </Button>
         </div>
       </div>

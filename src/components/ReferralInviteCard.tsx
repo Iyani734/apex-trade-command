@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Copy, Gift, RefreshCw, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { api, type ReferralSummary } from '@/services/api';
@@ -7,7 +8,8 @@ import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
 export function ReferralInviteCard() {
-  const { user, signInWithGoogle } = useAuth();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [summary, setSummary] = useState<ReferralSummary | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -91,7 +93,7 @@ export function ReferralInviteCard() {
             </div>
           </div>
         ) : (
-          <Button onClick={() => void signInWithGoogle()} className="w-full bg-cyan-300 text-slate-950 hover:bg-cyan-200">
+          <Button onClick={() => navigate('/login')} className="w-full bg-cyan-300 text-slate-950 hover:bg-cyan-200">
             Sign in to get invite link
           </Button>
         )}
