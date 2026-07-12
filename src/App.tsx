@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -36,6 +36,11 @@ import { RequireAuth } from "@/lib/auth";
 
 const queryClient = new QueryClient();
 
+const RedirectToDashboard = () => {
+  const location = useLocation();
+  return <Navigate to={{ pathname: "/dashboard", search: location.search }} replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -45,7 +50,7 @@ const App = () => (
       <PromptDialogHost />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<RedirectToDashboard />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/share/:token" element={<SharePage />} />
 

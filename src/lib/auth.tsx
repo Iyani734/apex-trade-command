@@ -4,7 +4,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { userPrefs } from '@/lib/userPrefs';
 import { mockMode } from '@/hooks/useMockData';
-import { getStoredReferralCode, storeReferralCode, type ReferralSummary, type SupportAgent } from '@/services/api';
+import { clearStoredReferralCode, getStoredReferralCode, storeReferralCode, type ReferralSummary, type SupportAgent } from '@/services/api';
 import {
   bindTrialDeviceToUser,
   createDeviceBlockedLicense,
@@ -122,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setDeviceBlocked(Boolean(data.license?.deviceBlocked));
       setSupportAgent(data.supportAgent || null);
       setReferral(data.referral || null);
+      if (data.referral?.accepted) clearStoredReferralCode();
     } catch (error) {
       console.warn('[Auth] Could not load license status', error);
       setLicense(null);
@@ -173,20 +174,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshLicense,
     signInWithGoogle: async () => {
       mockMode.setEnabled(false);
+      const redirectUrl = new URL('/dashboard', window.location.origin);
+      const referralCode = getStoredReferralCode();
+      if (referralCode) redirectUrl.searchParams.set('ref', referralCode);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: redirectUrl.toString(),
         },
       });
       if (error) throw error;
     },
     signInWithEmailMagicLink: async (email: string) => {
       mockMode.setEnabled(false);
+      const redirectUrl = new URL('/dashboard', window.location.origin);
+      const referralCode = getStoredReferralCode();
+      if (referralCode) redirectUrl.searchParams.set('ref', referralCode);
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: redirectUrl.toString(),
         },
       });
       if (error) throw error;

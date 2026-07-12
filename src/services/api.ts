@@ -21,6 +21,14 @@ export function getStoredReferralCode() {
   }
 }
 
+export function clearStoredReferralCode() {
+  try {
+    localStorage.removeItem(REFERRAL_STORAGE_KEY);
+  } catch {
+    // Ignore storage failures; referral acceptance is already persisted server-side.
+  }
+}
+
 export function storeReferralCode(rawCode: string | null | undefined) {
   const code = String(rawCode || '')
     .trim()
