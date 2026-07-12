@@ -4,9 +4,11 @@ import { api } from '@/services/api';
 import { cn } from '@/lib/utils';
 
 const SESSION_KEY = 'forexAnalyzer.feedback.sessionId';
+const FIRST_SEEN_KEY = 'forexAnalyzer.feedback.firstSeenAt';
 const DONE_KEY = 'forexAnalyzer.feedback.completedAt';
 const DISMISSED_KEY = 'forexAnalyzer.feedback.dismissedAt';
 const MIN_TIME_MS = 60_000;
+const MIN_SITE_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 const ASK_AGAIN_DONE_MS = 14 * 24 * 60 * 60 * 1000;
 const ASK_AGAIN_DISMISSED_MS = 3 * 24 * 60 * 60 * 1000;
 
@@ -41,6 +43,17 @@ const readMs = (key: string) => {
   }
 };
 
+const readOrCreateFirstSeen = (now: number) => {
+  try {
+    const existing = Number(localStorage.getItem(FIRST_SEEN_KEY) || 0);
+    if (existing > 0) return existing;
+    localStorage.setItem(FIRST_SEEN_KEY, String(now));
+    return now;
+  } catch {
+    return now;
+  }
+};
+
 export function UXFeedbackPrompt() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -54,6 +67,9 @@ export function UXFeedbackPrompt() {
 
   useEffect(() => {
     const now = Date.now();
+    const firstSeenAt = readOrCreateFirstSeen(now);
+    if (now - firstSeenAt < MIN_SITE_AGE_MS) return;
+
     const completedAt = readMs(DONE_KEY);
     const dismissedAt = readMs(DISMISSED_KEY);
     if (completedAt && now - completedAt < ASK_AGAIN_DONE_MS) return;

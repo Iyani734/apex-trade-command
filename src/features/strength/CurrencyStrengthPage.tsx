@@ -23,6 +23,25 @@ function syntheticStrengths(seed: number): Record<Ccy, number> {
   return out;
 }
 
+function isForexMarketOpen(date = new Date()) {
+  const day = date.getUTCDay();
+  const hour = date.getUTCHours();
+
+  if (day === 0) return hour >= 22; // Sunday after the weekly open.
+  if (day >= 1 && day <= 4) return true;
+  if (day === 5) return hour < 22; // Friday before the weekly close.
+  return false;
+}
+
+function previousForexCloseSeed(date = new Date()) {
+  const close = new Date(date);
+  const daysSinceFriday = (close.getUTCDay() + 2) % 7;
+  close.setUTCDate(close.getUTCDate() - daysSinceFriday);
+  close.setUTCHours(22, 0, 0, 0);
+  if (close.getTime() > date.getTime()) close.setUTCDate(close.getUTCDate() - 7);
+  return close.getTime();
+}
+
 function colorFor(v: number) {
   if (v >= 70) return { bar: 'bg-success', text: 'text-success', label: 'STRONG' };
   if (v >= 55) return { bar: 'bg-primary', text: 'text-primary', label: 'BULLISH' };
@@ -43,7 +62,10 @@ export function CurrencyStrengthPage({ strengths, onRefresh }: CurrencyStrengthP
     return () => window.clearInterval(t);
   }, []);
 
-  const data = useMemo(() => strengths ?? syntheticStrengths(tick), [strengths, tick]);
+  const marketOpen = isForexMarketOpen(new Date(tick));
+  const dataSeed = marketOpen ? tick : previousForexCloseSeed(new Date(tick));
+  const data = useMemo(() => strengths ?? syntheticStrengths(dataSeed), [strengths, dataSeed]);
+  const isSynthetic = !strengths;
   const sorted = [...CCYS].sort((a, b) => data[b] - data[a]);
   const strongest = sorted[0];
   const weakest = sorted[sorted.length - 1];
@@ -56,9 +78,18 @@ export function CurrencyStrengthPage({ strengths, onRefresh }: CurrencyStrengthP
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Activity className="w-6 h-6 text-primary" /> Currency Strength Meter
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Relative strength of the 8 majors. Trade strongest vs. weakest for highest momentum.
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span>Relative strength of the 8 majors.</span>
+            {isSynthetic && (
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                marketOpen
+                  ? 'bg-success/15 text-success'
+                  : 'bg-warning/15 text-warning'
+              }`}>
+                {marketOpen ? 'Market open' : 'Market closed - paused'}
+              </span>
+            )}
+          </div>
         </div>
         <button
           onClick={() => { setTick(Date.now()); onRefresh?.(); }}

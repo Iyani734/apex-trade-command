@@ -232,6 +232,7 @@ export function TopBar() {
   const [draft, setDraft] = useState('');
   const [shareOpen, setShareOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteAutoDismiss, setInviteAutoDismiss] = useState(false);
   const [user, setUser] = useState(() => userPrefs.getUser());
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const usageTime = useTotalUsageTime(user?.email || 'guest');
@@ -251,14 +252,18 @@ export function TopBar() {
     const userKey = authUser?.id || authUser?.email || '';
     if (!userKey) return;
 
+    setInviteAutoDismiss(true);
     setInviteOpen(true);
   }, [authUser?.email, authUser?.id]);
 
   useEffect(() => {
-    if (!inviteOpen) return;
-    const timer = window.setTimeout(() => setInviteOpen(false), 20_000);
+    if (!inviteOpen || !inviteAutoDismiss) return;
+    const timer = window.setTimeout(() => {
+      setInviteOpen(false);
+      setInviteAutoDismiss(false);
+    }, 20_000);
     return () => window.clearTimeout(timer);
-  }, [inviteOpen]);
+  }, [inviteAutoDismiss, inviteOpen]);
 
   /*
    * Header broker advert rotation is disabled while ads are moved into the sidebar.
@@ -351,7 +356,10 @@ export function TopBar() {
           </button>
         )}
         <button
-          onClick={() => setInviteOpen(true)}
+          onClick={() => {
+            setInviteAutoDismiss(false);
+            setInviteOpen(true);
+          }}
           title="Invite traders"
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-xs font-medium transition-colors"
         >
@@ -537,7 +545,10 @@ export function TopBar() {
           <div className="pointer-events-auto relative">
             <button
               type="button"
-              onClick={() => setInviteOpen(false)}
+              onClick={() => {
+                setInviteOpen(false);
+                setInviteAutoDismiss(false);
+              }}
               aria-label="Close invite popup"
               className="absolute right-3 top-3 z-10 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
