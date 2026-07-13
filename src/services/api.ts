@@ -386,7 +386,7 @@ export const api = {
   copy: {
     getPairs: () =>
       request<{ pairs: Array<{ masterAccountId: string; slaveAccountId: string; lotMultiplier: number; copySL: boolean; copyTP: boolean; active: boolean; createdAt?: string; latency?: { avg_ms: number; min_ms: number; max_ms: number; last_ms: number; count: number } | null }> }>('/copy/pairs'),
-    createPair: (data: { masterAccountId: string; slaveAccountId: string; lotMultiplier?: number; copySL?: boolean; copyTP?: boolean }) =>
+    createPair: (data: { masterAccountId: string; slaveAccountId?: string; slaveAccountIds?: string[]; lotMultiplier?: number; copySL?: boolean; copyTP?: boolean }) =>
       request('/copy/pairs', { method: 'POST', body: JSON.stringify(data) }),
     updatePair: (slaveAccountId: string, data: { lotMultiplier?: number; copySL?: boolean; copyTP?: boolean; active?: boolean }) =>
       request(`/copy/pairs/${slaveAccountId}`, { method: 'PUT', body: JSON.stringify(data) }),

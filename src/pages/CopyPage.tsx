@@ -69,7 +69,7 @@ export default function CopyPage() {
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [masterId, setMasterId] = useState('');
-  const [slaveId, setSlaveId] = useState('');
+  const [slaveIds, setSlaveIds] = useState<string[]>([]);
   const [lotMult, setLotMult] = useState(1);
   const [copySL, setCopySL] = useState(true);
   const [copyTP, setCopyTP] = useState(true);
@@ -79,6 +79,13 @@ export default function CopyPage() {
 
   const owned = userPrefs.getOwned();
   const myAccounts = accounts.filter((a) => owned.includes(a.id));
+  const pairsByMaster = pairs.reduce<Record<string, Pair[]>>((grouped, pair) => {
+    if (!grouped[pair.masterAccountId]) grouped[pair.masterAccountId] = [];
+    grouped[pair.masterAccountId].push(pair);
+    return grouped;
+  }, {});
+  const activeSlaveIds = new Set(pairs.map((pair) => pair.slaveAccountId));
+  const selectedSlaveCount = slaveIds.length;
 
   const loadPairs = async () => {
     setLoading(true);
@@ -110,16 +117,29 @@ export default function CopyPage() {
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    setSlaveIds((current) => current.filter((id) => id !== masterId));
+  }, [masterId]);
+
+  const toggleSlave = (accountId: string) => {
+    setSlaveIds((current) => (
+      current.includes(accountId)
+        ? current.filter((id) => id !== accountId)
+        : [...current, accountId]
+    ));
+  };
+
   const handleCreate = async () => {
-    if (!masterId || !slaveId) return toast.error('Pick master and slave accounts');
-    if (masterId === slaveId) return toast.error('Master and slave must be different');
+    if (!masterId || selectedSlaveCount === 0) return toast.error('Pick one master and at least one slave account');
+    if (slaveIds.includes(masterId)) return toast.error('Master and slave must be different');
     setCreating(true);
     try {
-      await api.copy.createPair({ masterAccountId: masterId, slaveAccountId: slaveId, lotMultiplier: lotMult, copySL, copyTP });
-      // auto-resume slave so it starts copying immediately
-      try { await api.commands.resume(slaveId); } catch { /* ignore */ }
-      toast.success('Copy pair created — slave resumed');
-      setMasterId(''); setSlaveId('');
+      await api.copy.createPair({ masterAccountId: masterId, slaveAccountIds: slaveIds, lotMultiplier: lotMult, copySL, copyTP });
+      // Auto-resume selected slaves so they start copying immediately.
+      await Promise.all(slaveIds.map((id) => api.commands.resume(id).catch(() => undefined)));
+      toast.success(`${selectedSlaveCount} slave account${selectedSlaveCount === 1 ? '' : 's'} connected to master`);
+      setMasterId('');
+      setSlaveIds([]);
       await loadPairs();
     } catch (e: any) {
       toast.error(`Create failed: ${e.message}`);
@@ -262,7 +282,7 @@ export default function CopyPage() {
       {/* Create new pair */}
       <div className="glass-card p-5">
         <h3 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Create New Copy Pair
+          <Plus className="w-4 h-4" /> Create Copy Group
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
@@ -273,11 +293,44 @@ export default function CopyPage() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Slave Account</label>
-            <select value={slaveId} onChange={(e) => setSlaveId(e.target.value)} className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm border border-border/50 focus:outline-none focus:border-primary/50">
+            <label className="text-xs text-muted-foreground block mb-1">Slave Accounts</label>
+            <select
+              multiple
+              value={slaveIds}
+              onChange={(e) => setSlaveIds(Array.from(e.target.selectedOptions, (option) => option.value).filter(Boolean))}
+              className="hidden"
+            >
               <option value="">— Select slave —</option>
               {myAccounts.filter((a) => a.id !== masterId).map((a) => (<option key={a.id} value={a.id}>{a.alias} ({a.id})</option>))}
             </select>
+            <div className="grid max-h-64 grid-cols-1 gap-2 overflow-y-auto rounded-lg border border-border/50 bg-secondary/20 p-2 sm:grid-cols-2">
+              {myAccounts.filter((a) => a.id !== masterId).map((a) => {
+                const selected = slaveIds.includes(a.id);
+                const linked = activeSlaveIds.has(a.id);
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => toggleSlave(a.id)}
+                    className={`rounded-lg border p-3 text-left transition-colors ${
+                      selected
+                        ? 'border-primary bg-primary/15 text-foreground'
+                        : 'border-border/40 bg-background/30 hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">{a.alias}</span>
+                      <span className={`h-2 w-2 rounded-full ${selected ? 'bg-primary' : a.status === 'ONLINE' ? 'bg-success' : 'bg-muted-foreground'}`} />
+                    </div>
+                    <div className="mt-1 font-mono text-[10px] text-muted-foreground">{a.id}</div>
+                    {linked && <div className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-primary">Already linked</div>}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {selectedSlaveCount} selected. One master can control many slave accounts.
+            </p>
           </div>
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Lot Multiplier</label>
@@ -292,16 +345,48 @@ export default function CopyPage() {
             </label>
           </div>
         </div>
-        <button onClick={handleCreate} disabled={creating || !masterId || !slaveId} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
-          {creating ? 'Creating...' : 'Create Pair'}
+        <button onClick={handleCreate} disabled={creating || !masterId || selectedSlaveCount === 0} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
+          {creating ? 'Creating...' : `Create ${selectedSlaveCount || ''} Slave Link${selectedSlaveCount === 1 ? '' : 's'}`}
         </button>
       </div>
 
       {/* Existing pairs */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Active Pairs ({pairs.length})</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Active Slave Links ({pairs.length})</h3>
         {pairs.length === 0 && (
           <div className="glass-card p-12 text-center text-sm text-muted-foreground">No copy pairs configured yet.</div>
+        )}
+        {Object.entries(pairsByMaster).length > 0 && (
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {Object.entries(pairsByMaster).map(([masterAccountId, group]) => {
+              const master = accounts.find((a) => a.id === masterAccountId);
+              return (
+                <div key={masterAccountId} className="glass-card p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Master group</p>
+                      <p className="mt-1 font-semibold">{master?.alias || masterAccountId}</p>
+                      <p className="font-mono text-xs text-muted-foreground">{masterAccountId}</p>
+                    </div>
+                    <div className="rounded-lg bg-primary/15 px-3 py-2 text-right">
+                      <p className="font-mono text-lg font-bold text-primary">{group.length}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">slaves</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {group.map((pair) => {
+                      const slave = accounts.find((a) => a.id === pair.slaveAccountId);
+                      return (
+                        <span key={pair.slaveAccountId} className="rounded-full border border-border/50 bg-secondary/30 px-3 py-1 text-xs">
+                          {slave?.alias || pair.slaveAccountId}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
          {pairs.map((pair) => {
           const master = accounts.find((a) => a.id === pair.masterAccountId);

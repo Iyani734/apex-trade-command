@@ -4,13 +4,17 @@ import { FREE_EA_URL, PAID_EA_URL } from '@/lib/trial';
 import { useAuth } from '@/lib/auth';
 
 const CONTACT_EMAIL = 'ianchomba734@gmail.com';
+const MQL5_RENT_1M = 'https://www.mql5.com/en/accounting/buy/market/182969?period=4&source=Unknown&cartId=ec9aed0000000000be96546a';
+const MQL5_RENT_3M = 'https://www.mql5.com/en/accounting/buy/market/182969?period=3&source=Unknown&cartId=ec9aed0000000000be96546a';
+const MQL5_RENT_6M = 'https://www.mql5.com/en/accounting/buy/market/182969?period=2&source=Unknown&cartId=ec9aed0000000000be96546a';
+const MQL5_RENT_1Y = 'https://www.mql5.com/en/accounting/buy/market/182969?period=1&source=Unknown&cartId=ec9aed0000000000be96546a';
 
 const plans = [
   { name: 'Free Trial', price: '$0', period: '1 month', href: FREE_EA_URL, accent: true },
-  { name: 'Monthly', price: '$30', period: '1 month', href: PAID_EA_URL },
-  { name: 'Quarterly', price: '$45', period: '3 months', href: PAID_EA_URL },
-  { name: 'Half Year', price: '$60', period: '6 months', href: PAID_EA_URL },
-  { name: 'Annual', price: '$80', period: '1 year', href: PAID_EA_URL },
+  { name: 'Monthly', price: '$30', period: '1 month', href: MQL5_RENT_1M },
+  { name: 'Quarterly', price: '$35', period: '3 months', href: MQL5_RENT_3M, savings: 'You save 61%' },
+  { name: 'Half Year', price: '$60', period: '6 months', href: MQL5_RENT_6M, savings: 'You save 67%' },
+  { name: 'Annual', price: '$100', period: '1 year', href: MQL5_RENT_1Y, savings: 'You save 73%' },
 ];
 
 export default function PricingPage() {
@@ -114,6 +118,11 @@ export default function PricingPage() {
             <div className="mt-5">
               <span className="text-3xl font-mono font-bold">{plan.price}</span>
             </div>
+            {'savings' in plan && plan.savings && (
+              <div className="mt-3 inline-flex rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success">
+                {plan.savings}
+              </div>
+            )}
             {currentPlan && (
               <div className="mt-3 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
                 Current plan - {currentFreeDays} day{currentFreeDays === 1 ? '' : 's'} remaining
