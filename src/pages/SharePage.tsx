@@ -21,6 +21,8 @@ const compactMoney = (value: number) => {
 const DEFAULT_SHARE_SECTIONS: ShareSection[] = [
   'overview',
   'analytics',
+  'risk_metrics',
+  'trade_breakdown',
   'calendar',
   'open_positions',
   'closed_trades',
@@ -140,6 +142,10 @@ export default function SharePage() {
           </div>
         )}
 
+        {canShow('risk_metrics') && (
+          <RiskMetrics account={account} analytics={analytics} positions={positions} />
+        )}
+
         {canShow('analytics') && (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <div className="glass-card p-4 sm:p-5 xl:col-span-2">
@@ -176,6 +182,10 @@ export default function SharePage() {
           </div>
         )}
 
+        {canShow('trade_breakdown') && (
+          <TradeBreakdown analytics={analytics} history={history} />
+        )}
+
         {canShow('calendar') && <SharedCalendar history={history} />}
         {canShow('open_positions') && <OpenPositions positions={positions} />}
         {canShow('closed_trades') && <ClosedTrades history={history} />}
@@ -196,6 +206,167 @@ function Stat({ label, value, sub, tone }: { label: string; value: string; sub?:
         {value}
       </p>
       {sub && <p className={cn('text-xs mt-0.5', sub.startsWith('+') ? 'profit-positive' : 'profit-negative')}>{sub}</p>}
+    </div>
+  );
+}
+
+function rawText(value: unknown, fallback = '-') {
+  const text = String(value ?? '').trim();
+  return text || fallback;
+}
+
+function profitTone(value: number) {
+  return value >= 0 ? 'profit-positive' : 'profit-negative';
+}
+
+function RiskMetrics({ account, analytics, positions }: { account: any; analytics: any; positions: any[] }) {
+  const runningPnl = positions.reduce((sum, position) => sum + n(position?.profit ?? position?.net_profit), 0);
+  const openLots = positions.reduce((sum, position) => sum + n(position?.lots ?? position?.volume), 0);
+  const marginLevel = n(account.margin_level ?? account.marginLevel);
+  const freeMargin = n(account.free_margin ?? account.margin_free ?? account.freeMargin);
+  const maxDrawdown = n(analytics.max_drawdown ?? analytics.maxDrawdown ?? analytics.drawdown);
+  const dailyVolatility = n(analytics.daily_volatility ?? analytics.dailyVolatility ?? analytics.daily_vol);
+
+  const metrics: Array<{ label: string; value: string; tone?: 'positive' | 'negative' }> = [
+    { label: 'Account type', value: rawText(account.account_type ?? account.accountType ?? account.type, 'Unknown') },
+    { label: 'Currency', value: rawText(account.currency, 'USD') },
+    { label: 'Leverage', value: rawText(account.leverage, '-') },
+    { label: 'Free margin', value: `$${freeMargin.toLocaleString(undefined, { maximumFractionDigits: 2 })}` },
+    { label: 'Margin level', value: marginLevel ? `${marginLevel.toFixed(1)}%` : '-' },
+    { label: 'Open lots', value: openLots.toFixed(2) },
+    { label: 'Running PnL', value: money(runningPnl), tone: runningPnl >= 0 ? 'positive' : 'negative' },
+    { label: 'Max drawdown', value: `${maxDrawdown.toFixed(1)}%`, tone: 'negative' },
+    { label: 'Daily volatility', value: dailyVolatility ? `$${dailyVolatility.toFixed(2)}` : '-' },
+  ];
+
+  return (
+    <div className="glass-card p-4 sm:p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Risk and account details</h3>
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+          {positions.length} open position{positions.length === 1 ? '' : 's'}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        {metrics.map((metric) => (
+          <div key={metric.label} className="min-w-0 rounded-xl border border-border/40 bg-secondary/15 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{metric.label}</p>
+            <p className={cn('mt-1 truncate font-mono text-sm font-bold sm:text-base', metric.tone === 'positive' && 'profit-positive', metric.tone === 'negative' && 'profit-negative')}>
+              {metric.value}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function buildSymbolRows(analytics: any, history: any[]) {
+  const symbolStats = Array.isArray(analytics.symbol_stats) ? analytics.symbol_stats : [];
+  if (symbolStats.length) {
+    return symbolStats.slice(0, 8).map((row: any) => ({
+      name: rawText(row.symbol, 'Symbol'),
+      profit: n(row.net_profit ?? row.profit),
+      trades: n(row.trades ?? row.count),
+      winRate: n(row.win_rate ?? row.winRate),
+    }));
+  }
+
+  const grouped = new Map<string, { profit: number; trades: number; wins: number }>();
+  history.forEach((trade) => {
+    const symbol = rawText(trade.symbol, 'Unknown');
+    const profit = n(trade.net_profit ?? trade.profit);
+    const current = grouped.get(symbol) || { profit: 0, trades: 0, wins: 0 };
+    current.profit += profit;
+    current.trades += 1;
+    if (profit > 0) current.wins += 1;
+    grouped.set(symbol, current);
+  });
+
+  return [...grouped.entries()]
+    .map(([name, row]) => ({
+      name,
+      profit: row.profit,
+      trades: row.trades,
+      winRate: row.trades ? (row.wins / row.trades) * 100 : 0,
+    }))
+    .sort((a, b) => Math.abs(b.profit) - Math.abs(a.profit))
+    .slice(0, 8);
+}
+
+function buildSessionRows(analytics: any) {
+  const rows = Array.isArray(analytics.session_stats) ? analytics.session_stats : [];
+  return rows.slice(0, 6).map((row: any) => ({
+    name: rawText(row.session ?? row.name, 'Session'),
+    profit: n(row.net_profit ?? row.profit),
+    trades: n(row.trades ?? row.count),
+  }));
+}
+
+function TradeBreakdown({ analytics, history }: { analytics: any; history: any[] }) {
+  const symbols = buildSymbolRows(analytics, history);
+  const sessions = buildSessionRows(analytics);
+  const avgWin = n(analytics.avg_win ?? analytics.average_win ?? analytics.avgWin);
+  const avgLoss = n(analytics.avg_loss ?? analytics.average_loss ?? analytics.avgLoss);
+  const totalClosed = history.length;
+
+  return (
+    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
+      <div className="glass-card p-4 sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Trade analytics</h3>
+          <span className="rounded-full bg-secondary/40 px-3 py-1 text-xs font-mono text-muted-foreground">
+            {totalClosed} closed trade{totalClosed === 1 ? '' : 's'}
+          </span>
+        </div>
+        <div className="space-y-2">
+          {symbols.length === 0 && (
+            <div className="py-8 text-center text-sm text-muted-foreground">No symbol breakdown in this shared snapshot.</div>
+          )}
+          {symbols.map((row) => (
+            <div key={row.name} className="rounded-xl border border-border/40 bg-secondary/15 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-mono text-sm font-bold">{row.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{row.trades || 0} trade{row.trades === 1 ? '' : 's'} · {row.winRate.toFixed(1)}% win rate</p>
+                </div>
+                <p className={cn('shrink-0 font-mono text-sm font-bold', profitTone(row.profit))}>{money(row.profit)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="glass-card p-4 sm:p-5">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Behavior snapshot</h3>
+        <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-1">
+          {[
+            { label: 'Avg win', value: money(avgWin), tone: 'positive' as const },
+            { label: 'Avg loss', value: money(avgLoss), tone: 'negative' as const },
+          ].map((item) => (
+            <div key={item.label} className="min-w-0 rounded-xl border border-border/40 bg-secondary/15 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{item.label}</p>
+              <p className={cn('mt-1 truncate font-mono text-base font-bold', item.tone === 'positive' ? 'profit-positive' : 'profit-negative')}>
+                {item.value}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 space-y-2">
+          {sessions.map((row) => (
+            <div key={row.name} className="flex items-center justify-between gap-3 rounded-lg bg-secondary/15 px-3 py-2 text-sm">
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{row.name}</p>
+                <p className="text-[11px] text-muted-foreground">{row.trades || 0} trade{row.trades === 1 ? '' : 's'}</p>
+              </div>
+              <p className={cn('font-mono font-bold', profitTone(row.profit))}>{money(row.profit)}</p>
+            </div>
+          ))}
+          {sessions.length === 0 && (
+            <p className="rounded-lg bg-secondary/15 px-3 py-5 text-center text-sm text-muted-foreground">No session breakdown available.</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -9,7 +9,9 @@ import {
   LineChart,
   Loader2,
   Lock,
+  PieChart,
   Share2,
+  ShieldCheck,
   Trash2,
   WalletCards,
   X,
@@ -42,6 +44,18 @@ const SHARE_OPTIONS: Array<{
     title: 'Analytics charts',
     description: 'Equity curve and session performance charts.',
     icon: LineChart,
+  },
+  {
+    id: 'risk_metrics',
+    title: 'Risk metrics',
+    description: 'Drawdown, margin, account type, leverage, exposure, and risk health.',
+    icon: ShieldCheck,
+  },
+  {
+    id: 'trade_breakdown',
+    title: 'Trade analytics',
+    description: 'Symbol performance, session results, win rate, average win/loss, and trade behavior.',
+    icon: PieChart,
   },
   {
     id: 'calendar',
@@ -144,19 +158,19 @@ export function ShareLinkDialog({ accountId, accountAlias, open, onClose }: Prop
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/80 p-3 backdrop-blur-md sm:p-5" onClick={onClose}>
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/80 p-2 backdrop-blur-md sm:p-5" onClick={onClose}>
       <div
-        className="flex max-h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-sky-950 via-blue-950 to-slate-950 shadow-2xl shadow-sky-950/60"
+        className="flex max-h-[calc(100svh-1rem)] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-cyan-300/30 bg-gradient-to-br from-sky-950 via-blue-950 to-slate-950 shadow-2xl shadow-sky-950/60 sm:max-h-[calc(100vh-2rem)] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-cyan-200/15 p-4 sm:p-6">
+        <div className="flex items-start justify-between gap-3 border-b border-cyan-200/15 p-4 sm:gap-4 sm:p-6">
           <div className="min-w-0">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-cyan-300/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-100">
               <Share2 className="h-3.5 w-3.5" />
               Private share builder
             </div>
-            <h3 className="text-2xl font-bold leading-tight text-white">Share {accountAlias}</h3>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-sky-100/75">
+            <h3 className="break-words text-xl font-bold leading-tight text-white sm:text-2xl">Share {accountAlias}</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-sky-100/75">
               Create a read-only performance link and choose exactly what the receiver can see. New links are private by default and only work for people who have the URL.
             </p>
           </div>
@@ -169,7 +183,7 @@ export function ShareLinkDialog({ accountId, accountAlias, open, onClose }: Prop
           </button>
         </div>
 
-        <div className="grid min-h-0 gap-4 overflow-y-auto p-4 sm:p-6 lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="grid min-h-0 gap-4 overflow-y-auto p-3 sm:p-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)]">
           <div className="space-y-4">
             <div className="rounded-2xl border border-cyan-200/15 bg-white/10 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -186,7 +200,7 @@ export function ShareLinkDialog({ accountId, accountAlias, open, onClose }: Prop
                 </button>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {SHARE_OPTIONS.map((option) => {
                   const Icon = option.icon;
                   const selected = sections.includes(option.id);
@@ -195,7 +209,7 @@ export function ShareLinkDialog({ accountId, accountAlias, open, onClose }: Prop
                       key={option.id}
                       type="button"
                       onClick={() => toggleSection(option.id)}
-                      className={`min-h-28 rounded-xl border p-3 text-left transition-colors ${
+                      className={`min-h-36 rounded-xl border p-3 text-left transition-colors ${
                         selected
                           ? 'border-cyan-300/50 bg-cyan-300/15 text-white'
                           : 'border-cyan-200/10 bg-slate-950/25 text-sky-100/70 hover:bg-white/10'
@@ -211,8 +225,8 @@ export function ShareLinkDialog({ accountId, accountAlias, open, onClose }: Prop
                           {selected && <Check className="h-3.5 w-3.5" />}
                         </span>
                       </div>
-                      <div className="mt-3 font-semibold">{option.title}</div>
-                      <p className="mt-1 text-xs leading-5 text-sky-100/60">{option.description}</p>
+                      <div className="mt-3 break-words text-base font-semibold leading-snug">{option.title}</div>
+                      <p className="mt-1 text-xs leading-5 text-sky-100/65">{option.description}</p>
                     </button>
                   );
                 })}
@@ -257,7 +271,7 @@ export function ShareLinkDialog({ accountId, accountAlias, open, onClose }: Prop
                 </div>
               </div>
               <div className="mt-4 rounded-xl border border-cyan-200/15 bg-slate-950/35 p-3 text-xs leading-5 text-sky-100/65">
-                Shared now: {selectedSummary || 'Nothing selected'}
+                <span className="font-semibold text-cyan-100">Shared now:</span> {selectedSummary || 'Nothing selected'}
               </div>
             </div>
 
@@ -278,7 +292,7 @@ export function ShareLinkDialog({ accountId, accountAlias, open, onClose }: Prop
                     const expired = link.expiresAt && new Date(link.expiresAt).getTime() <= Date.now();
                     return (
                       <div key={link.token} className="rounded-xl border border-cyan-200/10 bg-slate-950/35 p-3">
-                        <div className="min-w-0 font-mono text-xs text-sky-100/75 truncate">{shareLinks.buildUrl(link.token)}</div>
+                        <div className="min-w-0 truncate font-mono text-xs text-sky-100/75">{shareLinks.buildUrl(link.token)}</div>
                         <div className="mt-1 text-[11px] text-sky-100/45">
                           {expired ? 'Expired' : link.expiresAt ? `Expires ${new Date(link.expiresAt).toLocaleString()}` : 'Never expires'}
                         </div>

@@ -22,8 +22,9 @@ import { api, type AdminAccountInsight, type AdminInsightsResponse, type AdminUs
 import { cn } from '@/lib/utils';
 
 const money = (value: unknown) => {
+  if (value === null || value === undefined || value === '') return '-';
   const n = Number(value);
-  if (!Number.isFinite(n)) return '$0.00';
+  if (!Number.isFinite(n)) return '-';
   return new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: 'USD',
@@ -60,6 +61,8 @@ const environmentClass = (value: string) => {
   if (value === 'demo') return 'border-sky-400/40 bg-sky-500/10 text-sky-300';
   return 'border-slate-400/30 bg-slate-500/10 text-slate-300';
 };
+
+type AccountEnvironmentFilter = 'all' | 'live' | 'demo' | 'unknown';
 
 function MetricCard({
   title,
@@ -113,7 +116,11 @@ function AccountStrip({ account }: { account: AdminAccountInsight }) {
             {account.accountId} - {account.broker || 'Unknown broker'}{account.server ? ` - ${account.server}` : ''}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:min-w-[34rem]">
+        <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3 xl:grid-cols-5 lg:min-w-[42rem]">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Est. start</p>
+            <p className="font-mono font-semibold">{money(account.estimatedInitialDeposit)}</p>
+          </div>
           <div>
             <p className="text-xs uppercase tracking-widest text-muted-foreground">Balance</p>
             <p className="font-mono font-semibold">{money(account.balance)}</p>
@@ -134,7 +141,7 @@ function AccountStrip({ account }: { account: AdminAccountInsight }) {
           </div>
         </div>
       </div>
-      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-6">
         <div className="rounded-lg bg-secondary/20 p-3">
           <p className="text-xs text-muted-foreground">Win rate</p>
           <p className="font-semibold">{pct(account.winRate)}</p>
@@ -146,6 +153,12 @@ function AccountStrip({ account }: { account: AdminAccountInsight }) {
         <div className="rounded-lg bg-secondary/20 p-3">
           <p className="text-xs text-muted-foreground">Max drawdown</p>
           <p className="font-semibold">{pct(account.maxDrawdown)}</p>
+        </div>
+        <div className="rounded-lg bg-secondary/20 p-3">
+          <p className="text-xs text-muted-foreground">Realized P/L</p>
+          <p className={cn('truncate font-semibold', Number(account.realizedProfit) >= 0 ? 'text-emerald-300' : 'text-rose-300')}>
+            {money(account.realizedProfit)}
+          </p>
         </div>
         <div className="rounded-lg bg-secondary/20 p-3">
           <p className="text-xs text-muted-foreground">Best symbol</p>
@@ -185,6 +198,7 @@ export function AdminInsightsPanel() {
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [accountEnvironment, setAccountEnvironment] = useState<AccountEnvironmentFilter>('all');
   const [error, setError] = useState('');
 
   const load = async () => {
@@ -222,6 +236,25 @@ export function AdminInsightsPanel() {
     if (!insights?.users.length) return null;
     return insights.users.find((user) => user.userId === selectedUserId) || filteredUsers[0] || insights.users[0];
   }, [filteredUsers, insights?.users, selectedUserId]);
+
+  const accountEnvironmentCounts = useMemo(() => {
+    const rows = insights?.accounts || [];
+    return {
+      all: rows.length,
+      live: rows.filter((account) => account.environment === 'live').length,
+      demo: rows.filter((account) => account.environment === 'demo').length,
+      unknown: rows.filter((account) => !['live', 'demo'].includes(account.environment)).length,
+    };
+  }, [insights?.accounts]);
+
+  const filteredAccounts = useMemo(() => {
+    const rows = insights?.accounts || [];
+    if (accountEnvironment === 'all') return rows;
+    if (accountEnvironment === 'unknown') {
+      return rows.filter((account) => !['live', 'demo'].includes(account.environment));
+    }
+    return rows.filter((account) => account.environment === accountEnvironment);
+  }, [accountEnvironment, insights?.accounts]);
 
   const maxPageViews = Math.max(1, ...(insights?.pageUsage || []).map((page) => page.views));
 
@@ -381,12 +414,30 @@ export function AdminInsightsPanel() {
         </TabsContent>
 
         <TabsContent value="accounts" className="space-y-3">
-          {(insights?.accounts || []).map((account) => (
+          <div className="flex flex-wrap items-center gap-2">
+            {(['all', 'live', 'demo', 'unknown'] as AccountEnvironmentFilter[]).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setAccountEnvironment(value)}
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors',
+                  accountEnvironment === value
+                    ? 'border-sky-300/60 bg-sky-400/15 text-sky-100'
+                    : 'border-border/50 bg-secondary/20 text-muted-foreground hover:bg-secondary/40',
+                )}
+              >
+                {value === 'all' ? 'All accounts' : value === 'live' ? 'Real' : value} ({accountEnvironmentCounts[value]})
+              </button>
+            ))}
+          </div>
+
+          {filteredAccounts.map((account) => (
             <AccountStrip key={`${account.userId}-${account.accountId}`} account={account} />
           ))}
-          {!loading && insights && insights.accounts.length === 0 ? (
+          {!loading && insights && filteredAccounts.length === 0 ? (
             <div className="rounded-xl border border-border/45 bg-secondary/10 p-8 text-center text-sm text-muted-foreground">
-              No connected accounts have been recorded yet.
+              No {accountEnvironment === 'all' ? 'connected' : accountEnvironment} accounts have been recorded yet.
             </div>
           ) : null}
         </TabsContent>

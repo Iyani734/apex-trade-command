@@ -113,6 +113,8 @@ export type ShareExpiry = '24h' | '7d' | 'never';
 export type ShareSection =
   | 'overview'
   | 'analytics'
+  | 'risk_metrics'
+  | 'trade_breakdown'
   | 'calendar'
   | 'open_positions'
   | 'closed_trades';
@@ -264,6 +266,8 @@ export interface AdminAccountInsight {
   balance: number | null;
   equity: number | null;
   runningProfit: number | null;
+  realizedProfit: number | null;
+  estimatedInitialDeposit: number | null;
   openTrades: number;
   closedTrades: number;
   winRate: number | null;

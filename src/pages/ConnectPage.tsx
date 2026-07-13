@@ -5,11 +5,13 @@ import { toast } from 'sonner';
 import { api } from '@/services/api';
 import { userPrefs } from '@/lib/userPrefs';
 import { useTradingStore } from '@/store/tradingStore';
+import { useAuth } from '@/lib/auth';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.forexanalyzerpro.com/api';
 const WEBREQUEST_URL = API_BASE.replace(/\/api\/?$/, '');
 
 export default function ConnectPage() {
+  const { license } = useAuth();
   const setActiveAccount = useTradingStore((s) => s.setActiveAccount);
   const [accountId, setAccountId] = useState('');
   const [role, setRole] = useState<'STANDALONE' | 'MASTER' | 'SLAVE'>('STANDALONE');
@@ -95,6 +97,11 @@ export default function ConnectPage() {
                 <p className="text-sm text-muted-foreground mt-1">
                   Use your personal EA key in MetaTrader so ForexAnalyzer Pro can receive fast live account updates.
                 </p>
+                {license?.accountLimit ? (
+                  <p className="mt-2 text-xs font-medium text-primary">
+                    Your current plan allows {license.accountLimit} connected account{license.accountLimit === 1 ? '' : 's'}.
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>

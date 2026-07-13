@@ -32,6 +32,9 @@ export interface TrialLicense {
   daysUntilAccessEnds: number;
   freeEaUrl: string;
   paidEaUrl: string;
+  accountLimit?: number;
+  freeAccountLimit?: number;
+  paidAccountLimit?: number;
   migrationRequired?: boolean;
   message?: string | null;
 }
