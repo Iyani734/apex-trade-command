@@ -97,6 +97,12 @@ export interface ServerDashboardData {
 }
 
 export type ShareExpiry = '24h' | '7d' | 'never';
+export type ShareSection =
+  | 'overview'
+  | 'analytics'
+  | 'calendar'
+  | 'open_positions'
+  | 'closed_trades';
 
 export interface ShareLinkRecord {
   token: string;
@@ -310,7 +316,7 @@ export const api = {
   share: {
     list: (accountId: string) =>
       request<{ links: ShareLinkRecord[] }>(`/share-links?accountId=${encodeURIComponent(accountId)}`),
-    create: (data: { accountId: string; expiry: ShareExpiry; label?: string }) =>
+    create: (data: { accountId: string; expiry: ShareExpiry; label?: string; sections?: ShareSection[] }) =>
       request<{ link: ShareLinkRecord }>('/share-links', { method: 'POST', body: JSON.stringify(data) }),
     revoke: (token: string) =>
       request<{ success: boolean }>(`/share-links/${encodeURIComponent(token)}`, { method: 'DELETE' }),

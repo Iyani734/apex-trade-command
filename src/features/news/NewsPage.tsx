@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bell, BellOff, Star, StarOff, RefreshCw, ExternalLink, Filter } from 'lucide-react';
+import { Bell, BellOff, CheckCircle2, Star, StarOff, RefreshCw, ExternalLink, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +47,9 @@ export default function NewsPage() {
   const [scope, setScope] = useState<'all'|'today'|'tomorrow'|'week'|'watch'>('week');
   const [watchlist, setWatchlist] = useState<string[]>(loadWatchlist());
   const [reminders, setReminders] = useState<Reminder[]>(loadReminders());
+  const [alertsEnabled, setAlertsEnabled] = useState(
+    () => typeof Notification !== 'undefined' && Notification.permission === 'granted',
+  );
 
   const load = async () => {
     setLoading(true);
@@ -77,6 +80,7 @@ export default function NewsPage() {
 
   const setReminder = async (ev: NewsEvent, minutes: number) => {
     const perm = await requestNotificationPermission();
+    setAlertsEnabled(perm === 'granted');
     if (perm !== 'granted') {
       toast.warning('Browser notifications blocked — in-app alerts will still fire.');
     }
@@ -139,10 +143,21 @@ export default function NewsPage() {
             size="sm"
             onClick={async () => {
               const p = await requestNotificationPermission();
-              toast[p === 'granted' ? 'success' : 'warning'](`Notifications: ${p}`);
+              setAlertsEnabled(p === 'granted');
+              if (p === 'granted') {
+                toast.success('Alerts enabled for news reminders');
+              } else {
+                toast.warning(`Notifications: ${p}. In-app reminders can still fire while the site is open.`);
+              }
             }}
+            className={alertsEnabled ? 'border-success/40 bg-success/10 text-success hover:bg-success/15' : undefined}
           >
-            <Bell className="h-4 w-4 mr-2" /> Enable Alerts
+            {alertsEnabled ? (
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+            ) : (
+              <Bell className="h-4 w-4 mr-2" />
+            )}
+            {alertsEnabled ? 'Alerts enabled' : 'Enable Alerts'}
           </Button>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { addDays, endOfMonth, format, getDay, isSameMonth, startOfMonth } from 'date-fns';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { CalendarDays, Lock, TrendingUp } from 'lucide-react';
-import { api, type PublicShareResponse } from '@/services/api';
+import { api, type PublicShareResponse, type ShareSection } from '@/services/api';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -17,6 +17,14 @@ const compactMoney = (value: number) => {
   }
   return money(value);
 };
+
+const DEFAULT_SHARE_SECTIONS: ShareSection[] = [
+  'overview',
+  'analytics',
+  'calendar',
+  'open_positions',
+  'closed_trades',
+];
 
 function dayKey(raw: unknown): string | null {
   if (!raw) return null;
@@ -79,6 +87,13 @@ export default function SharePage() {
   const analytics = snap.analytics || {};
   const positions = Array.isArray(snap.open_positions) ? snap.open_positions : [];
   const history = Array.isArray(snap.trade_history) ? snap.trade_history : [];
+  const rawSections = (snap as any).share_options?.sections;
+  const sharedSections = new Set<ShareSection>(
+    Array.isArray(rawSections) && rawSections.length
+      ? rawSections.filter((section: string) => DEFAULT_SHARE_SECTIONS.includes(section as ShareSection))
+      : DEFAULT_SHARE_SECTIONS,
+  );
+  const canShow = (section: ShareSection) => sharedSections.has(section);
   const balance = n(account.balance);
   const equity = n(account.equity);
   const runningPnl: number = (positions as any[]).reduce<number>((sum, p) => sum + n(p?.profit ?? p?.net_profit), 0);
@@ -115,50 +130,55 @@ export default function SharePage() {
           </Link>
         </header>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Stat label="Balance" value={`$${balance.toLocaleString()}`} />
-          <Stat label="Equity" value={`$${equity.toLocaleString()}`} sub={money(runningPnl)} />
-          <Stat label="Open PnL" value={money(runningPnl)} tone={runningPnl >= 0 ? 'positive' : 'negative'} />
-          <Stat label="Win Rate" value={`${n((analytics as any).win_rate).toFixed(1)}%`} />
-          <Stat label="Profit Factor" value={n((analytics as any).profit_factor).toFixed(2)} />
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <div className="glass-card p-4 sm:p-5 xl:col-span-2">
-            <h3 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Analytics</h3>
-            <ResponsiveContainer width="100%" height={isMobile ? 240 : 300}>
-              <AreaChart data={equityCurve} margin={chartMargin}>
-                <defs>
-                  <linearGradient id="shareEq" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis width={isMobile ? 46 : 70} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-                <Area type="monotone" dataKey="equity" stroke="hsl(var(--primary))" fill="url(#shareEq)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
+        {canShow('overview') && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <Stat label="Balance" value={`$${balance.toLocaleString()}`} />
+            <Stat label="Equity" value={`$${equity.toLocaleString()}`} sub={money(runningPnl)} />
+            <Stat label="Open PnL" value={money(runningPnl)} tone={runningPnl >= 0 ? 'positive' : 'negative'} />
+            <Stat label="Win Rate" value={`${n((analytics as any).win_rate).toFixed(1)}%`} />
+            <Stat label="Profit Factor" value={n((analytics as any).profit_factor).toFixed(2)} />
           </div>
+        )}
 
-          <div className="glass-card p-4 sm:p-5">
-            <h3 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Sessions</h3>
-            <ResponsiveContainer width="100%" height={isMobile ? 220 : 300}>
-              <BarChart data={sessionStats} margin={chartMargin}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis width={isMobile ? 46 : 70} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-                <Bar dataKey="profit" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+        {canShow('analytics') && (
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <div className="glass-card p-4 sm:p-5 xl:col-span-2">
+              <h3 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Analytics</h3>
+              <ResponsiveContainer width="100%" height={isMobile ? 240 : 300}>
+                <AreaChart data={equityCurve} margin={chartMargin}>
+                  <defs>
+                    <linearGradient id="shareEq" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis width={isMobile ? 46 : 70} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                  <Area type="monotone" dataKey="equity" stroke="hsl(var(--primary))" fill="url(#shareEq)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="glass-card p-4 sm:p-5">
+              <h3 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">Sessions</h3>
+              <ResponsiveContainer width="100%" height={isMobile ? 220 : 300}>
+                <BarChart data={sessionStats} margin={chartMargin}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis width={isMobile ? 46 : 70} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="profit" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
+        )}
 
-        <SharedCalendar history={history} />
-        <OpenPositions positions={positions} />
+        {canShow('calendar') && <SharedCalendar history={history} />}
+        {canShow('open_positions') && <OpenPositions positions={positions} />}
+        {canShow('closed_trades') && <ClosedTrades history={history} />}
 
         <p className="text-center text-xs text-muted-foreground pt-2">
           Read-only view. {data.link.expiresAt ? `Expires ${new Date(data.link.expiresAt).toLocaleString()}` : 'No expiry.'}
@@ -260,6 +280,97 @@ function OpenPositions({ positions }: { positions: any[] }) {
         </tbody>
       </table>
       </div>
+    </div>
+  );
+}
+
+function ClosedTrades({ history }: { history: any[] }) {
+  const rows = history.slice(0, 20);
+
+  return (
+    <div className="glass-card p-4 sm:p-5">
+      <h3 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wider">
+        Recent Closed Trades ({history.length})
+      </h3>
+      <div className="space-y-3 md:hidden">
+        {rows.length === 0 && (
+          <div className="py-8 text-center text-sm text-muted-foreground">No closed trades in this snapshot</div>
+        )}
+        {rows.map((trade, index) => {
+          const profit = n(trade.net_profit ?? trade.profit);
+          const type = String(trade.type || trade.order_type || '').toUpperCase();
+          return (
+            <div key={trade.ticket || index} className="rounded-lg border border-border/40 bg-secondary/15 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-base font-bold">{trade.symbol || '-'}</span>
+                    {type && (
+                      <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded', type.includes('BUY') ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive')}>
+                        {type.replace('ORDER_TYPE_', '')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 text-[11px] font-mono text-muted-foreground">
+                    {trade.exit_time_human || trade.close_time_human || trade.closeTime || trade.open_time_human || ''}
+                  </div>
+                </div>
+                <div className={cn('shrink-0 text-right font-mono text-lg font-bold', profit >= 0 ? 'profit-positive' : 'profit-negative')}>
+                  {money(profit)}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead className="text-xs text-muted-foreground/60 uppercase tracking-wider">
+            <tr>
+              <th className="text-left py-2">Ticket</th>
+              <th className="text-left py-2">Symbol</th>
+              <th className="text-left py-2">Type</th>
+              <th className="text-right py-2">Lots</th>
+              <th className="text-right py-2">Open</th>
+              <th className="text-right py-2">Close</th>
+              <th className="text-right py-2">Profit</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={7} className="py-8 text-center text-muted-foreground">No closed trades in this snapshot</td>
+              </tr>
+            )}
+            {rows.map((trade, index) => {
+              const profit = n(trade.net_profit ?? trade.profit);
+              const type = String(trade.type || trade.order_type || '').toUpperCase().replace('ORDER_TYPE_', '');
+              return (
+                <tr key={trade.ticket || index} className="border-t border-border/30">
+                  <td className="py-2 font-mono text-xs">{trade.ticket || '-'}</td>
+                  <td className="py-2 font-mono font-semibold">{trade.symbol || '-'}</td>
+                  <td className="py-2">
+                    <span className={cn('text-xs font-bold px-2 py-0.5 rounded', type.includes('BUY') ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive')}>
+                      {type || '-'}
+                    </span>
+                  </td>
+                  <td className="py-2 text-right font-mono">{n(trade.lots ?? trade.volume).toFixed(2)}</td>
+                  <td className="py-2 text-right font-mono">{n(trade.open_price ?? trade.entry_price).toFixed(5)}</td>
+                  <td className="py-2 text-right font-mono">{n(trade.close_price ?? trade.exit_price).toFixed(5)}</td>
+                  <td className={cn('py-2 text-right font-mono font-semibold', profit >= 0 ? 'profit-positive' : 'profit-negative')}>
+                    {money(profit)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {history.length > rows.length && (
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          Showing latest {rows.length} closed trades from this read-only snapshot.
+        </p>
+      )}
     </div>
   );
 }

@@ -48,6 +48,17 @@ export function TrialNotice() {
     }
   }, [license, shouldShow, user?.id]);
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('forexAnalyzer:trialNoticeVisibility', {
+      detail: { open },
+    }));
+    return () => {
+      window.dispatchEvent(new CustomEvent('forexAnalyzer:trialNoticeVisibility', {
+        detail: { open: false },
+      }));
+    };
+  }, [open]);
+
   const content = useMemo(() => {
     if (!license) return null;
 

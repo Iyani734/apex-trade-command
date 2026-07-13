@@ -233,6 +233,7 @@ export function TopBar() {
   const [shareOpen, setShareOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteAutoDismiss, setInviteAutoDismiss] = useState(false);
+  const [trialNoticeOpen, setTrialNoticeOpen] = useState(false);
   const [user, setUser] = useState(() => userPrefs.getUser());
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const usageTime = useTotalUsageTime(user?.email || 'guest');
@@ -249,12 +250,27 @@ export function TopBar() {
   }, [authUser?.email, authUser?.id]);
 
   useEffect(() => {
+    const onTrialNotice = (event: Event) => {
+      setTrialNoticeOpen(Boolean((event as CustomEvent<{ open?: boolean }>).detail?.open));
+    };
+    window.addEventListener('forexAnalyzer:trialNoticeVisibility', onTrialNotice);
+    return () => window.removeEventListener('forexAnalyzer:trialNoticeVisibility', onTrialNotice);
+  }, []);
+
+  useEffect(() => {
     const userKey = authUser?.id || authUser?.email || '';
     if (!userKey) return;
+    if (trialNoticeOpen) return;
 
     setInviteAutoDismiss(true);
     setInviteOpen(true);
-  }, [authUser?.email, authUser?.id]);
+  }, [authUser?.email, authUser?.id, trialNoticeOpen]);
+
+  useEffect(() => {
+    if (!trialNoticeOpen || !inviteAutoDismiss) return;
+    setInviteOpen(false);
+    setInviteAutoDismiss(false);
+  }, [inviteAutoDismiss, trialNoticeOpen]);
 
   useEffect(() => {
     if (!inviteOpen || !inviteAutoDismiss) return;
@@ -541,7 +557,7 @@ export function TopBar() {
         />
       )}
       {inviteOpen && createPortal(
-        <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[9998] sm:left-auto sm:right-5 sm:w-[32rem] sm:max-w-[calc(100vw-2rem)]">
+        <div className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-[9998] sm:left-auto sm:right-5 sm:w-[32rem] sm:max-w-[calc(100vw-2rem)]">
           <div className="pointer-events-auto relative">
             <button
               type="button"
@@ -550,9 +566,9 @@ export function TopBar() {
                 setInviteAutoDismiss(false);
               }}
               aria-label="Close invite popup"
-              className="absolute right-3 top-3 z-10 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="absolute right-2.5 top-2.5 z-10 rounded-xl p-2 text-sky-100/80 hover:bg-white/10 hover:text-white"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
             <ReferralInviteCard />
           </div>

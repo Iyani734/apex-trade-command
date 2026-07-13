@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Copy, Gift, RefreshCw, Users } from 'lucide-react';
+import { ChevronDown, ChevronUp, Copy, Gift, RefreshCw, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,9 @@ export function ReferralInviteCard() {
   const navigate = useNavigate();
   const [summary, setSummary] = useState<ReferralSummary | null>(null);
   const [loading, setLoading] = useState(false);
+  const [referralsOpen, setReferralsOpen] = useState(false);
+  const referrals = summary?.referrals || [];
+  const referralCount = referrals.length;
 
   const load = async () => {
     if (!user) return;
@@ -85,11 +88,35 @@ export function ReferralInviteCard() {
                 <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
               </Button>
             </div>
-            <div className="flex items-center gap-2 text-xs text-sky-100/70">
-              <Users className="h-3.5 w-3.5 text-cyan-200" />
-              <span>
-                {summary?.referrals.length || 0} successful referral{summary?.referrals.length === 1 ? '' : 's'}
-              </span>
+
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-cyan-200/15 bg-white/10 p-3">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-sky-100/60">
+                    <Users className="h-3.5 w-3.5 text-cyan-200" />
+                    Referrals
+                  </div>
+                  <div className="mt-1 text-2xl font-bold text-white">{referralCount}</div>
+                </div>
+                <div className="rounded-xl border border-cyan-200/15 bg-white/10 p-3">
+                  <div className="text-xs uppercase tracking-[0.14em] text-sky-100/60">Earned</div>
+                  <div className="mt-1 text-2xl font-bold text-white">
+                    {referralCount * (summary?.bonusDays || 7)}
+                    <span className="ml-1 text-sm font-semibold text-sky-100/60">days</span>
+                  </div>
+                </div>
+              </div>
+
+              {referralCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setReferralsOpen((open) => !open)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-200/20 bg-cyan-300/10 px-3 py-2 text-sm font-semibold text-cyan-100 transition-colors hover:bg-cyan-300/20 sm:w-auto"
+                >
+                  {referralsOpen ? 'Hide referrals' : 'View referrals'}
+                  {referralsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -98,9 +125,9 @@ export function ReferralInviteCard() {
           </Button>
         )}
 
-        {user && summary?.referrals?.length ? (
-          <div className="grid max-h-36 gap-2 overflow-y-auto border-t border-cyan-200/15 pt-3 sm:grid-cols-2">
-            {summary.referrals.slice(0, 6).map((referral) => (
+        {user && referralCount > 0 && referralsOpen ? (
+          <div className="grid max-h-44 gap-2 overflow-y-auto border-t border-cyan-200/15 pt-3 sm:grid-cols-2">
+            {referrals.map((referral) => (
               <div key={referral.id} className="rounded-lg bg-white/10 p-3">
                 <p className="truncate text-sm font-semibold text-white">
                   {referral.referredUser?.name || referral.referredUser?.email || 'New trader'}
