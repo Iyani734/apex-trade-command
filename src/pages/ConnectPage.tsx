@@ -4,11 +4,13 @@ import { Link2, Server, CheckCircle, ArrowRight, Loader2, KeyRound, Copy } from 
 import { toast } from 'sonner';
 import { api } from '@/services/api';
 import { userPrefs } from '@/lib/userPrefs';
+import { useTradingStore } from '@/store/tradingStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.forexanalyzerpro.com/api';
 const WEBREQUEST_URL = API_BASE.replace(/\/api\/?$/, '');
 
 export default function ConnectPage() {
+  const setActiveAccount = useTradingStore((s) => s.setActiveAccount);
   const [accountId, setAccountId] = useState('');
   const [role, setRole] = useState<'STANDALONE' | 'MASTER' | 'SLAVE'>('STANDALONE');
   const [connecting, setConnecting] = useState(false);
@@ -59,6 +61,7 @@ export default function ConnectPage() {
 
       // Mark as one of "my accounts" for copy-trading filtering.
       userPrefs.addOwned(cleanAccountId);
+      setActiveAccount(cleanAccountId);
 
       setConnectedAccountId(cleanAccountId);
       setConnected(true);

@@ -185,6 +185,8 @@ function handleInit(data: any) {
   const ids = Object.keys(data);
   console.log('[Socket.io] INIT — accounts:', ids);
   const store = useTradingStore.getState();
+  const previousAccountIds = new Set(store.accounts.map((account) => account.id));
+  const hadAccountsBeforeInit = previousAccountIds.size > 0;
 
   const accounts = ids.map((id) => {
     const acc: any = data[id];
@@ -213,6 +215,15 @@ function handleInit(data: any) {
     if (proc) applySnapshot(id, proc, acc?.eaStatus);
     userPrefs.addOwned(id);
   });
+
+  const newAccountId = hadAccountsBeforeInit
+    ? accounts.map((account) => account.id).filter((id) => !previousAccountIds.has(id)).at(-1)
+    : null;
+  if (newAccountId) {
+    store.setActiveAccount(newAccountId);
+    toast.success(`Switched to new account ${newAccountId}`);
+    return;
+  }
 
   // Preserve the account the user was previously on. If it's no longer in the
   // list (e.g. account was disconnected), fall back to the first one.
