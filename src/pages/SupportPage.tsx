@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { LifeBuoy, MessageSquarePlus, RefreshCw, Send, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock3, LifeBuoy, MessageCircle, MessageSquarePlus, RefreshCw, Send, ShieldCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -74,20 +74,23 @@ export default function SupportPage() {
     [accounts, accountId],
   );
 
+  const ticketStats = useMemo(() => ({
+    total: tickets.length,
+    active: tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'pending').length,
+    resolved: tickets.filter((ticket) => ticket.status === 'resolved' || ticket.status === 'closed').length,
+  }), [tickets]);
+
   const loadTickets = useCallback(async (quiet = false) => {
     try {
       if (!quiet) setLoading(true);
       const res = await api.support.listTickets();
       setTickets(res.tickets);
-      if (!ticketId && res.tickets.length > 0) {
-        navigate(`/support/${res.tickets[0].id}`, { replace: true });
-      }
     } catch (error: any) {
       toast.error(error?.message || 'Could not load support tickets');
     } finally {
       setLoading(false);
     }
-  }, [navigate, ticketId]);
+  }, []);
 
   const loadThread = useCallback(async (id: string, quiet = false) => {
     try {
@@ -212,25 +215,65 @@ export default function SupportPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Support</h1>
-          <p className="text-sm text-muted-foreground">Talk to ForexAnalyzer Pro support from inside your account.</p>
+      <div className="rounded-2xl border border-sky-400/20 bg-gradient-to-br from-sky-500/18 via-background/75 to-emerald-500/10 p-5 shadow-xl shadow-black/10">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-sky-400/15 text-sky-300">
+                <LifeBuoy className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">ForexAnalyzer Pro Care</p>
+                <h1 className="text-2xl font-bold tracking-tight">Support Center</h1>
+              </div>
+            </div>
+            <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+              Create a private support ticket, link the affected trading account, and keep every reply in one clean workspace.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[28rem]">
+            <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/10 p-3">
+              <MessageCircle className="mb-2 h-4 w-4 text-cyan-300" />
+              <p className="text-2xl font-bold">{ticketStats.total}</p>
+              <p className="text-xs text-muted-foreground">Total tickets</p>
+            </div>
+            <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 p-3">
+              <Clock3 className="mb-2 h-4 w-4 text-amber-300" />
+              <p className="text-2xl font-bold">{ticketStats.active}</p>
+              <p className="text-xs text-muted-foreground">Needs attention</p>
+            </div>
+            <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3">
+              <CheckCircle2 className="mb-2 h-4 w-4 text-emerald-300" />
+              <p className="text-2xl font-bold">{ticketStats.resolved}</p>
+              <p className="text-xs text-muted-foreground">Resolved</p>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => loadTickets()} disabled={loading}>
-            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
-            Refresh
-          </Button>
-          <Button onClick={() => setShowNewTicket((current) => !current)}>
-            {showNewTicket ? <XCircle className="h-4 w-4" /> : <MessageSquarePlus className="h-4 w-4" />}
-            {showNewTicket ? 'Cancel' : 'New Ticket'}
-          </Button>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 rounded-full border border-border/50 bg-background/45 px-3 py-2 text-xs text-muted-foreground">
+            <ShieldCheck className="h-4 w-4 text-emerald-300" />
+            Private account support tied to your signed-in profile.
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => loadTickets()} disabled={loading}>
+              <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+              Refresh
+            </Button>
+            <Button onClick={() => setShowNewTicket((current) => !current)}>
+              {showNewTicket ? <XCircle className="h-4 w-4" /> : <MessageSquarePlus className="h-4 w-4" />}
+              {showNewTicket ? 'Cancel' : 'New Ticket'}
+            </Button>
+          </div>
         </div>
       </div>
 
       {showNewTicket && (
-        <form onSubmit={createTicket} className="glass-card space-y-4 p-4">
+        <form onSubmit={createTicket} className="rounded-2xl border border-border/60 bg-card/80 p-4 shadow-xl shadow-black/10 md:p-5">
+          <div className="mb-4 flex flex-col gap-1">
+            <h2 className="text-lg font-semibold">Create a support ticket</h2>
+            <p className="text-sm text-muted-foreground">Add the exact issue and attach an account so support can inspect the right context.</p>
+          </div>
+          <div className="space-y-4">
           <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
             <div className="space-y-2">
               <Label htmlFor="support-subject">Subject</Label>
@@ -299,11 +342,12 @@ export default function SupportPage() {
             <Send className="h-4 w-4" />
             Create Ticket
           </Button>
+          </div>
         </form>
       )}
 
       <div className="grid gap-4 xl:grid-cols-[24rem_minmax(0,1fr)]">
-        <div className="glass-card overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/75 shadow-xl shadow-black/10">
           <div className="border-b border-border/40 p-4">
             <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Your tickets</h2>
           </div>
@@ -323,8 +367,8 @@ export default function SupportPage() {
                 key={ticket.id}
                 onClick={() => navigate(`/support/${ticket.id}`)}
                 className={cn(
-                  'mb-2 w-full rounded-lg border p-3 text-left transition-colors hover:bg-secondary/30',
-                  ticket.id === ticketId ? 'border-primary/60 bg-primary/10' : 'border-border/40 bg-secondary/10',
+                  'mb-2 w-full rounded-xl border p-3 text-left transition-colors hover:bg-secondary/30',
+                  ticket.id === ticketId ? 'border-sky-400/60 bg-sky-500/10' : 'border-border/40 bg-secondary/10',
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -345,7 +389,7 @@ export default function SupportPage() {
           </div>
         </div>
 
-        <div className="glass-card flex min-h-[32rem] flex-col overflow-hidden">
+        <div className="flex min-h-[32rem] flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/75 shadow-xl shadow-black/10">
           {activeTicket ? (
             <>
               <div className="flex flex-col gap-3 border-b border-border/40 p-4 md:flex-row md:items-start md:justify-between">

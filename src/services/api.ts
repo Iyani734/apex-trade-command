@@ -230,6 +230,89 @@ export interface FeedbackResponse {
   createdAt: string;
 }
 
+export interface AdminAccountInsight {
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  accountId: string;
+  accountName: string;
+  broker: string;
+  server: string;
+  currency: string;
+  leverage: string;
+  accountType: string;
+  environment: 'live' | 'demo' | 'unknown' | string;
+  connectionMethod: string;
+  role: string;
+  online: boolean;
+  eaStatus: string;
+  lastSeenAt: string | null;
+  snapshotUpdatedAt: string | null;
+  balance: number | null;
+  equity: number | null;
+  runningProfit: number | null;
+  openTrades: number;
+  closedTrades: number;
+  winRate: number | null;
+  profitFactor: number | null;
+  maxDrawdown: number | null;
+  avgWin: number | null;
+  avgLoss: number | null;
+  bestSymbol: { symbol: string; profit: number | null; winRate: number | null } | null;
+  lastTradeAt: string | null;
+}
+
+export interface AdminUserInsight {
+  userId: string;
+  email: string;
+  name: string;
+  avatar: string;
+  planMode: string;
+  licenseStatus: string;
+  trialStartedAt: string | null;
+  trialEndsAt: string | null;
+  graceEndsAt: string | null;
+  paidUntil: string | null;
+  lastSeenAt: string | null;
+  pageViewsToday: number;
+  mostUsedPage: string;
+  openTickets: number;
+  pendingTickets: number;
+  feedbackCount: number;
+  latestFeedbackScore: number | null;
+  accounts: AdminAccountInsight[];
+  accountCount: number;
+  totalBalance: number;
+  totalEquity: number;
+}
+
+export interface AdminInsightsResponse {
+  agent: SupportAgent;
+  generatedAt: string;
+  metrics: {
+    totalUsers: number;
+    usersOpenedToday: number;
+    activeLastHour: number;
+    pageViewsToday: number;
+    mostUsedPage: string;
+    connectedAccounts: number;
+    liveAccounts: number;
+    demoAccounts: number;
+    onlineAccounts: number;
+    totalTrackedBalance: number;
+    totalTrackedEquity: number;
+    openTickets: number;
+    urgentTickets: number;
+    feedbackCount: number;
+    averageFeedbackScore: number | null;
+  };
+  pageUsage: Array<{ path: string; views: number }>;
+  ticketTotals: Record<string, number>;
+  users: AdminUserInsight[];
+  accounts: AdminAccountInsight[];
+  recentFeedback: FeedbackResponse[];
+}
+
 /**
  * EASettings — full remote configuration for the EA (v5.0.0).
  * Sent by GET /ea/settings/:accountId and accepted by PUT /api/accounts/:accountId/settings.
@@ -308,6 +391,14 @@ export const api = {
       email?: string;
     }) =>
       request<{ success: boolean }>('/public/feedback', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+
+  activity: {
+    pageView: (data: { pagePath: string; pageTitle?: string; referrer?: string; metadata?: Record<string, unknown> }) =>
+      request<{ success: boolean; missingTable?: boolean }>('/activity/page-view', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
@@ -472,6 +563,8 @@ export const api = {
         }),
       listUsers: () =>
         request<{ users: AdminClientOverview[]; agent: SupportAgent }>('/support/admin/users'),
+      insights: () =>
+        request<AdminInsightsResponse>('/support/admin/insights'),
       listFeedback: () =>
         request<{ feedback: FeedbackResponse[]; agent: SupportAgent }>('/support/admin/feedback'),
     },

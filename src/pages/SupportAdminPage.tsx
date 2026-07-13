@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { LifeBuoy, RefreshCw, Send, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Inbox, LifeBuoy, RefreshCw, Send, ShieldCheck, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -77,10 +77,12 @@ export default function SupportAdminPage() {
   const [sending, setSending] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
 
-  const openCount = useMemo(
-    () => tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'pending').length,
-    [tickets],
-  );
+  const ticketStats = useMemo(() => ({
+    total: tickets.length,
+    active: tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'pending').length,
+    urgent: tickets.filter((ticket) => ticket.priority === 'urgent').length,
+    resolved: tickets.filter((ticket) => ticket.status === 'resolved' || ticket.status === 'closed').length,
+  }), [tickets]);
 
   const loadTickets = useCallback(async (quiet = false) => {
     if (!supportAgent) return;
@@ -93,7 +95,7 @@ export default function SupportAdminPage() {
       setSelectedId((current) => {
         if (current && res.tickets.some((ticket) => ticket.id === current)) return current;
         if (requestedTicketId && res.tickets.some((ticket) => ticket.id === requestedTicketId)) return requestedTicketId;
-        return res.tickets[0]?.id || null;
+        return null;
       });
     } catch (error: any) {
       if (String(error?.message || '').includes('403')) {
@@ -199,18 +201,54 @@ export default function SupportAdminPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Support Admin</h1>
-          <p className="text-sm text-muted-foreground">
-            {agentName ? `Signed in as ${agentName}` : 'Support workspace'} - {openCount} active ticket{openCount === 1 ? '' : 's'}
-          </p>
+      <div className="rounded-2xl border border-sky-400/20 bg-gradient-to-br from-sky-500/18 via-background/75 to-violet-500/10 p-5 shadow-xl shadow-black/10">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-sky-400/15 text-sky-300">
+                <ShieldCheck className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">Support operations</p>
+                <h1 className="text-2xl font-bold tracking-tight">Admin Support Desk</h1>
+              </div>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {agentName ? `Signed in as ${agentName}` : 'Support workspace'} - inspect customers, accounts, activity, and tickets from one place.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-4 lg:min-w-[34rem]">
+            <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/10 p-3">
+              <Inbox className="mb-2 h-4 w-4 text-cyan-300" />
+              <p className="text-2xl font-bold">{ticketStats.total}</p>
+              <p className="text-xs text-muted-foreground">Tickets</p>
+            </div>
+            <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 p-3">
+              <Users className="mb-2 h-4 w-4 text-amber-300" />
+              <p className="text-2xl font-bold">{ticketStats.active}</p>
+              <p className="text-xs text-muted-foreground">Active</p>
+            </div>
+            <div className="rounded-xl border border-rose-400/20 bg-rose-500/10 p-3">
+              <AlertTriangle className="mb-2 h-4 w-4 text-rose-300" />
+              <p className="text-2xl font-bold">{ticketStats.urgent}</p>
+              <p className="text-xs text-muted-foreground">Urgent</p>
+            </div>
+            <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3">
+              <CheckCircle2 className="mb-2 h-4 w-4 text-emerald-300" />
+              <p className="text-2xl font-bold">{ticketStats.resolved}</p>
+              <p className="text-xs text-muted-foreground">Resolved</p>
+            </div>
+          </div>
         </div>
-        <Button variant="secondary" onClick={() => loadTickets()} disabled={loading}>
-          <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
-          Refresh
-        </Button>
+        <div className="mt-5 flex justify-end">
+          <Button variant="secondary" onClick={() => loadTickets()} disabled={loading}>
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+            Refresh tickets
+          </Button>
+        </div>
       </div>
+
+      <AdminInsightsPanel />
 
       <div className="glass-card grid gap-3 p-4 md:grid-cols-3">
         <Select value={status} onValueChange={(value) => setStatus(value as FilterStatus)}>
@@ -400,7 +438,6 @@ export default function SupportAdminPage() {
         </div>
       </div>
 
-      <AdminInsightsPanel />
     </div>
   );
 }

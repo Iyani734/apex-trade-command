@@ -7,6 +7,7 @@ import { useMockData, mockMode } from '@/hooks/useMockData';
 import { JournalPromptModal } from '@/components/JournalPromptModal';
 import { TrialNotice } from '@/components/TrialNotice';
 import { UXFeedbackPrompt } from '@/components/UXFeedbackPrompt';
+import { useActivityTracker } from '@/hooks/useActivityTracker';
 
 function LiveDataLoader() {
   useWebSocket();
@@ -19,6 +20,7 @@ function MockDataLoader() {
 
 export default function DashboardLayout() {
   const isMock = mockMode.isEnabled();
+  useActivityTracker();
 
   return (
     <SidebarProvider>
