@@ -10,7 +10,7 @@ const MQL5_RENT_6M = 'https://www.mql5.com/en/accounting/buy/market/182969?perio
 const MQL5_RENT_1Y = 'https://www.mql5.com/en/accounting/buy/market/182969?period=1&source=Unknown&cartId=ec9aed0000000000be96546a';
 
 const plans = [
-  { name: 'Free Trial', price: '$0', period: '1 month', href: FREE_EA_URL, accountLimit: 1, accent: true },
+  { name: 'Free Trial', price: '$0', period: '1 month', href: FREE_EA_URL, accountLimit: 3, accent: true },
   { name: 'Monthly', price: '$30', period: '1 month', href: MQL5_RENT_1M, accountLimit: 5 },
   { name: 'Quarterly', price: '$35', period: '3 months', href: MQL5_RENT_3M, accountLimit: 5, savings: 'You save 61%' },
   { name: 'Half Year', price: '$60', period: '6 months', href: MQL5_RENT_6M, accountLimit: 5, savings: 'You save 67%' },

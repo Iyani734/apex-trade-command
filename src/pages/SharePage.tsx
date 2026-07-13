@@ -224,10 +224,16 @@ function RiskMetrics({ account, analytics, positions }: { account: any; analytic
   const openLots = positions.reduce((sum, position) => sum + n(position?.lots ?? position?.volume), 0);
   const marginLevel = n(account.margin_level ?? account.marginLevel);
   const freeMargin = n(account.free_margin ?? account.margin_free ?? account.freeMargin);
+  const firstDeposit = n(account.first_deposit ?? account.initial_deposit);
+  const totalDeposits = n(account.total_deposits ?? account.deposits_total);
+  const totalWithdrawals = n(account.total_withdrawals ?? account.withdrawals_total);
   const maxDrawdown = n(analytics.max_drawdown ?? analytics.maxDrawdown ?? analytics.drawdown);
   const dailyVolatility = n(analytics.daily_volatility ?? analytics.dailyVolatility ?? analytics.daily_vol);
 
   const metrics: Array<{ label: string; value: string; tone?: 'positive' | 'negative' }> = [
+    { label: 'First deposit', value: firstDeposit ? `$${firstDeposit.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '-' },
+    { label: 'Total deposits', value: totalDeposits ? `$${totalDeposits.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '-' },
+    { label: 'Withdrawals', value: totalWithdrawals ? `$${totalWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '-' },
     { label: 'Account type', value: rawText(account.account_type ?? account.accountType ?? account.type, 'Unknown') },
     { label: 'Currency', value: rawText(account.currency, 'USD') },
     { label: 'Leverage', value: rawText(account.leverage, '-') },

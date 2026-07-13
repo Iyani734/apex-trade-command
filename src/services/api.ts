@@ -267,6 +267,13 @@ export interface AdminAccountInsight {
   equity: number | null;
   runningProfit: number | null;
   realizedProfit: number | null;
+  initialDeposit: number | null;
+  initialDepositSource: 'ea' | 'estimated' | string;
+  firstDeposit: number | null;
+  totalDeposits: number | null;
+  totalWithdrawals: number | null;
+  netDeposits: number | null;
+  totalCredit: number | null;
   estimatedInitialDeposit: number | null;
   openTrades: number;
   closedTrades: number;

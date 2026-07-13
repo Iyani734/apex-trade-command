@@ -98,6 +98,9 @@ function MetricCard({
 }
 
 function AccountStrip({ account }: { account: AdminAccountInsight }) {
+  const initialDepositLabel = account.initialDepositSource === 'ea' ? 'First deposit' : 'Est. start';
+  const initialDepositValue = account.initialDeposit ?? account.estimatedInitialDeposit;
+
   return (
     <div className="rounded-xl border border-border/50 bg-background/45 p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -116,10 +119,14 @@ function AccountStrip({ account }: { account: AdminAccountInsight }) {
             {account.accountId} - {account.broker || 'Unknown broker'}{account.server ? ` - ${account.server}` : ''}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3 xl:grid-cols-5 lg:min-w-[42rem]">
+        <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3 xl:grid-cols-6 lg:min-w-[48rem]">
           <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Est. start</p>
-            <p className="font-mono font-semibold">{money(account.estimatedInitialDeposit)}</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">{initialDepositLabel}</p>
+            <p className="font-mono font-semibold">{money(initialDepositValue)}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Total deposits</p>
+            <p className="font-mono font-semibold">{money(account.totalDeposits)}</p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-widest text-muted-foreground">Balance</p>
@@ -141,7 +148,7 @@ function AccountStrip({ account }: { account: AdminAccountInsight }) {
           </div>
         </div>
       </div>
-      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-6">
+      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-7">
         <div className="rounded-lg bg-secondary/20 p-3">
           <p className="text-xs text-muted-foreground">Win rate</p>
           <p className="font-semibold">{pct(account.winRate)}</p>
@@ -159,6 +166,10 @@ function AccountStrip({ account }: { account: AdminAccountInsight }) {
           <p className={cn('truncate font-semibold', Number(account.realizedProfit) >= 0 ? 'text-emerald-300' : 'text-rose-300')}>
             {money(account.realizedProfit)}
           </p>
+        </div>
+        <div className="rounded-lg bg-secondary/20 p-3">
+          <p className="text-xs text-muted-foreground">Withdrawals</p>
+          <p className="truncate font-semibold">{money(account.totalWithdrawals)}</p>
         </div>
         <div className="rounded-lg bg-secondary/20 p-3">
           <p className="text-xs text-muted-foreground">Best symbol</p>
