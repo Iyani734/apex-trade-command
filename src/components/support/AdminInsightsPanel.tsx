@@ -246,6 +246,11 @@ export function AdminInsightsPanel() {
             {error}
           </div>
         ) : null}
+        {!error && insights?.warnings?.length ? (
+          <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+            Some reporting data is still warming up: {insights.warnings.slice(0, 2).join(' | ')}
+          </div>
+        ) : null}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

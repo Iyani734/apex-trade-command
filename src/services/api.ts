@@ -70,7 +70,20 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
     headers,
   });
-  if (!res.ok) throw new Error(`API Error: ${res.status}`);
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const payload = await res.json();
+      detail = String(payload?.error || payload?.message || '');
+    } catch {
+      try {
+        detail = await res.text();
+      } catch {
+        detail = '';
+      }
+    }
+    throw new Error(detail ? `API Error: ${res.status} - ${detail}` : `API Error: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -308,6 +321,7 @@ export interface AdminInsightsResponse {
   };
   pageUsage: Array<{ path: string; views: number }>;
   ticketTotals: Record<string, number>;
+  warnings?: string[];
   users: AdminUserInsight[];
   accounts: AdminAccountInsight[];
   recentFeedback: FeedbackResponse[];
