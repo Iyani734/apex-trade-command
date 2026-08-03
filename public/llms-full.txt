@@ -36,6 +36,7 @@ ForexAnalyzer Pro offers a free trial version of the Expert Advisor and a paid v
 
 - Website: https://www.forexanalyzerpro.com/
 - Login: https://www.forexanalyzerpro.com/login
+- Support: https://www.forexanalyzerpro.com/support
 - Robots policy: https://www.forexanalyzerpro.com/robots.txt
 - Sitemap: https://www.forexanalyzerpro.com/sitemap.xml
 - LLM guide: https://www.forexanalyzerpro.com/llms.txt
@@ -46,4 +47,4 @@ Search engines and AI answer engines may use the public website description, pub
 
 ## Contact
 
-Email: ianchomba734@gmail.com
+Support: https://www.forexanalyzerpro.com/support

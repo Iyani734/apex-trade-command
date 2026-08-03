@@ -162,12 +162,15 @@ function SidebarBrokerAd({ collapsed }: { collapsed: boolean }) {
 
 export function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
-  const { supportAgent } = useAuth();
+  const { supportAgent, license } = useAuth();
   const collapsed = state === "collapsed";
   const accounts = useTradingStore((s) => s.accounts);
   const activeId = useTradingStore((s) => s.activeAccountId);
   const activeOnline =
     accounts.find((a) => a.id === activeId)?.status === "ONLINE";
+  const freeAccountLimit = license?.freeAccountLimit || 3;
+  const needsPaidForNextAccount = Boolean(!license?.paid && accounts.length >= freeAccountLimit);
+  const connectLabel = needsPaidForNextAccount ? "Connect Paid Version" : "Connect Account";
 
   const closeMobileSidebar = () => {
     if (isMobile) setOpenMobile(false);
@@ -276,7 +279,7 @@ export function AppSidebar() {
             onClick={closeMobileSidebar}
             className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary/50 hover:text-primary transition-colors"
             activeClassName="bg-primary/10 text-primary"
-            title="Connect account"
+            title={connectLabel}
           >
             <Link2 className="h-5 w-5" />
           </NavLink>
@@ -288,7 +291,7 @@ export function AppSidebar() {
             activeClassName="bg-primary/20 text-primary"
           >
             <Link2 className="w-4 h-4" />
-            Connect Account
+            {connectLabel}
           </NavLink>
         )}
 

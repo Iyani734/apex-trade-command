@@ -10,7 +10,7 @@
 - [Full AI summary](https://www.forexanalyzerpro.com/llms-full.txt)
 - [Free trial EA](https://www.mql5.com/en/market/product/111375)
 - [Paid EA](https://www.mql5.com/en/market/product/182969)
-- [MQL5 profile](https://www.mql5.com/en/users/65614798/)
+- [Support](https://www.forexanalyzerpro.com/support)
 
 ## What To Know
 
@@ -21,4 +21,4 @@
 
 ## Contact
 
-- Email: ianchomba734@gmail.com
+- Support: https://www.forexanalyzerpro.com/support

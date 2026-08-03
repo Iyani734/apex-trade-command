@@ -1,21 +1,26 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTradingStore } from '@/store/tradingStore';
-import { Settings, Trash2, RefreshCw } from 'lucide-react';
+import { Link2, Settings, Trash2, RefreshCw } from 'lucide-react';
 import { confirmDialog } from '@/components/ConfirmDialog';
 import { toast } from 'sonner';
 import { api } from '@/services/api';
 import { commandsStore } from '@/lib/commandsStore';
 import { userPrefs } from '@/lib/userPrefs';
+import { useAuth } from '@/lib/auth';
 
 export default function AccountsPage() {
   const accounts = useTradingStore((s) => s.accounts);
   const activeId = useTradingStore((s) => s.activeAccountId);
   const setActive = useTradingStore((s) => s.setActiveAccount);
   const setAccounts = useTradingStore((s) => s.setAccounts);
+  const { license } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState<string | null>(null);
+  const freeAccountLimit = license?.freeAccountLimit || 3;
+  const needsPaidForNextAccount = Boolean(!license?.paid && accounts.length >= freeAccountLimit);
+  const connectLabel = needsPaidForNextAccount ? 'Connect Paid Version' : 'Connect Account';
 
   const handleSettings = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -63,10 +68,25 @@ export default function AccountsPage() {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <h1 className="text-2xl font-bold tracking-tight">Accounts</h1>
-        <p className="text-sm text-muted-foreground">Manage your connected MetaTrader accounts</p>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Accounts</h1>
+          <p className="text-sm text-muted-foreground">Manage your connected MetaTrader accounts</p>
+        </div>
+        <Link
+          to="/connect"
+          className="inline-flex w-fit items-center gap-2 rounded-xl bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20"
+        >
+          <Link2 className="h-4 w-4" />
+          {connectLabel}
+        </Link>
       </motion.div>
+
+      {needsPaidForNextAccount && (
+        <div className="rounded-xl border border-sky-400/30 bg-sky-400/10 p-4 text-sm leading-6 text-muted-foreground">
+          You have reached the free limit of {freeAccountLimit} accounts. To add another account, connect it with the paid EA. If the paid EA connects successfully, this profile is upgraded automatically.
+        </div>
+      )}
 
       {accounts.length === 0 && (
         <div className="glass-card p-12 text-center text-muted-foreground text-sm">

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useTradingStore } from '@/store/tradingStore';
-import { ChevronDown, Pencil, Check, Share2, X, LogIn, LogOut, User as UserIcon, Clock, Gift } from 'lucide-react';
+import { ChevronDown, Pencil, Check, Share2, X, LogIn, LogOut, User as UserIcon, Clock, Gift, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ShareLinkDialog } from '@/components/share/ShareLinkDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -10,6 +10,7 @@ import { userPrefs } from '@/lib/userPrefs';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { ReferralInviteCard } from '@/components/ReferralInviteCard';
+import { api, type TradingStreak } from '@/services/api';
 
 const HEADER_BROKER_CYCLE_MS = 10_000; // rotate every 10 seconds
 const HEADER_BROKERS = [
@@ -217,6 +218,155 @@ function UserAvatar({ user, size = 'sm' }: { user: ReturnType<typeof userPrefs.g
   );
 }
 
+function StreakIndicator() {
+  const { user } = useAuth();
+  const [streak, setStreak] = useState<TradingStreak | null>(null);
+  const [activeSessionMs, setActiveSessionMs] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const celebratedRef = useRef<string>('');
+  const activeSessionMsRef = useRef(0);
+  const activationSentRef = useRef<string>('');
+
+  const applyStreakResult = (next: TradingStreak | null) => {
+    setStreak(next);
+
+    const milestone = next?.milestoneAchieved;
+    if (milestone) {
+      const key = `${user?.id}:${milestone.days}:${next.today}`;
+      if (celebratedRef.current !== key) {
+        celebratedRef.current = key;
+        toast.success(milestone.title, {
+          description: milestone.message,
+          duration: 8000,
+        });
+      }
+    } else if (next?.restored && next.restoresUsed) {
+      toast.success('Streak restored', {
+        description: `We used ${next.restoresUsed} restore${next.restoresUsed === 1 ? '' : 's'} to keep your trading streak alive.`,
+      });
+    } else if (next?.lost) {
+      toast.warning('Streak restarted', {
+        description: 'The monthly restore limit was used up, so a new consistency streak starts today.',
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.id) {
+      setStreak(null);
+      setActiveSessionMs(0);
+      activeSessionMsRef.current = 0;
+      return;
+    }
+
+    let cancelled = false;
+    activeSessionMsRef.current = 0;
+    setActiveSessionMs(0);
+    activationSentRef.current = '';
+    setLoading(true);
+    void api.streak.checkIn({
+      pagePath: `${window.location.pathname}${window.location.search || ''}`,
+      source: 'site_open',
+      activeSessionMs: 0,
+    })
+      .then(({ streak: next }) => {
+        if (cancelled) return;
+        applyStreakResult(next);
+      })
+      .catch((error) => {
+        console.warn('[Streak] Could not update streak', error);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !streak || streak.active || streak.marketPaused) return;
+
+    const requiredMs = Math.max(1, Number(streak.requiredActiveMs || 3 * 60 * 1000));
+    let lastTick = Date.now();
+    let cancelled = false;
+
+    const activate = () => {
+      const key = `${user.id}:${streak.today}`;
+      if (activationSentRef.current === key) return;
+      activationSentRef.current = key;
+      setLoading(true);
+      void api.streak.checkIn({
+        pagePath: `${window.location.pathname}${window.location.search || ''}`,
+        source: 'engaged_session',
+        activeSessionMs: activeSessionMsRef.current,
+      })
+        .then(({ streak: next }) => {
+          if (!cancelled) applyStreakResult(next);
+        })
+        .catch((error) => {
+          activationSentRef.current = '';
+          console.warn('[Streak] Could not activate streak', error);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      if (document.visibilityState === 'visible') {
+        activeSessionMsRef.current += now - lastTick;
+        setActiveSessionMs(activeSessionMsRef.current);
+      }
+      lastTick = now;
+
+      if (activeSessionMsRef.current >= requiredMs) activate();
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [streak?.active, streak?.marketPaused, streak?.requiredActiveMs, streak?.today, user?.id]);
+
+  if (!user?.id) return null;
+
+  const active = Boolean(streak?.active);
+  const marketPaused = Boolean(streak?.marketPaused);
+  const current = streak?.currentStreak ?? 0;
+  const restores = streak?.restoresRemaining ?? 0;
+  const requiredMs = Math.max(1, Number(streak?.requiredActiveMs || 3 * 60 * 1000));
+  const progressMs = Math.max(activeSessionMs, Number(streak?.activeSessionMs || 0));
+  const remainingMs = Math.max(0, requiredMs - progressMs);
+  const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60000));
+  const title = marketPaused
+    ? 'Markets are closed today, so your streak is paused.'
+    : active
+      ? `Streak active: ${current} trading day${current === 1 ? '' : 's'}. ${restores} restore${restores === 1 ? '' : 's'} left this month.`
+      : `Stay active for ${remainingMinutes} more minute${remainingMinutes === 1 ? '' : 's'} to light today's streak. ${restores} restore${restores === 1 ? '' : 's'} left this month.`;
+
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={() => {
+        void api.streak.me().then(({ streak: next }) => setStreak(next)).catch(() => undefined);
+      }}
+      className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
+        active
+          ? 'bg-orange-500/15 text-orange-200 ring-1 ring-orange-400/25'
+          : 'bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground'
+      }`}
+    >
+      <Flame className={`h-4 w-4 ${active ? 'fill-orange-300 text-orange-300 animate-pulse' : 'text-muted-foreground/70'}`} />
+      <span className="font-mono">{loading && !streak ? '...' : current}</span>
+      <span className="hidden xl:inline text-[10px] opacity-80">{active ? 'streak' : `${remainingMinutes}m`}</span>
+    </button>
+  );
+}
+
 export function TopBar() {
   const accounts = useTradingStore((s) => s.accounts);
   const activeId = useTradingStore((s) => s.activeAccountId);
@@ -261,6 +411,13 @@ export function TopBar() {
     const userKey = authUser?.id || authUser?.email || '';
     if (!userKey) return;
     if (trialNoticeOpen) return;
+    const storageKey = `forexAnalyzer.inviteAwarenessShown.${userKey}`;
+    try {
+      if (window.sessionStorage.getItem(storageKey)) return;
+      window.sessionStorage.setItem(storageKey, '1');
+    } catch {
+      // Session storage can be unavailable in private browsing; the popup still auto-dismisses.
+    }
 
     setInviteAutoDismiss(true);
     setInviteOpen(true);
@@ -371,6 +528,7 @@ export function TopBar() {
             <Share2 className="w-3.5 h-3.5" /> Share
           </button>
         )}
+        <StreakIndicator />
         <button
           onClick={() => {
             setInviteAutoDismiss(false);

@@ -106,7 +106,7 @@ export function useWebSocket() {
       console.warn('[Socket.io] connect_error', err.message);
     });
 
-    socket.on('INIT', (msg: any) => handleInit(msg?.data ?? msg));
+    socket.on('INIT', (msg: any) => applyAccountsInit(msg?.data ?? msg));
     socket.on('FULL_UPDATE', (msg: any) => handleFullUpdate(msg));
     socket.on('STATIC_UPDATE', (msg: any) => handleFullUpdate(msg));
     socket.on('STATUS_UPDATE', (msg: any) => handleStatus(msg, true));
@@ -121,6 +121,20 @@ export function useWebSocket() {
           latency: r.execution_ms,
         });
       }
+    });
+    ['SUPPORT_TICKET_CREATED', 'SUPPORT_TICKET_UPDATED', 'SUPPORT_MESSAGE_CREATED'].forEach((eventName) => {
+      socket.on(eventName, (msg: any) => {
+        window.dispatchEvent(new CustomEvent('fap:support-updated', {
+          detail: { eventName, ...(msg?.data || {}) },
+        }));
+      });
+    });
+    ['ADMIN_ACCOUNT_UPDATE', 'ADMIN_ACCOUNT_DELETED'].forEach((eventName) => {
+      socket.on(eventName, (msg: any) => {
+        window.dispatchEvent(new CustomEvent('fap:admin-insights-updated', {
+          detail: { eventName, ...(msg?.data || {}) },
+        }));
+      });
     });
     socket.on('alert_triggered', (msg: any) => {
       const data = msg?.data || msg;
@@ -180,7 +194,7 @@ export function useWebSocket() {
   }, []);
 }
 
-function handleInit(data: any) {
+export function applyAccountsInit(data: any) {
   if (!data || typeof data !== 'object') return;
   const ids = Object.keys(data);
   console.log('[Socket.io] INIT — accounts:', ids);

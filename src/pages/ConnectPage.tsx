@@ -6,12 +6,14 @@ import { api } from '@/services/api';
 import { userPrefs } from '@/lib/userPrefs';
 import { useTradingStore } from '@/store/tradingStore';
 import { useAuth } from '@/lib/auth';
+import { PAID_EA_URL } from '@/lib/trial';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.forexanalyzerpro.com/api';
 const WEBREQUEST_URL = API_BASE.replace(/\/api\/?$/, '');
 
 export default function ConnectPage() {
   const { license } = useAuth();
+  const accounts = useTradingStore((s) => s.accounts);
   const setActiveAccount = useTradingStore((s) => s.setActiveAccount);
   const [accountId, setAccountId] = useState('');
   const [role, setRole] = useState<'STANDALONE' | 'MASTER' | 'SLAVE'>('STANDALONE');
@@ -21,6 +23,9 @@ export default function ConnectPage() {
   const [eaKeyPrefix, setEaKeyPrefix] = useState<string | null>(null);
   const [newEaKey, setNewEaKey] = useState<string | null>(null);
   const [keyLoading, setKeyLoading] = useState(false);
+  const freeAccountLimit = license?.freeAccountLimit || 3;
+  const needsPaidForNextAccount = Boolean(!license?.paid && accounts.length >= freeAccountLimit);
+  const pageTitle = needsPaidForNextAccount ? 'Connect Paid Version' : 'Connect Account';
 
   useEffect(() => {
     api.auth.me()
@@ -83,8 +88,12 @@ export default function ConnectPage() {
         <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
           <Link2 className="w-8 h-8 text-primary" />
         </div>
-        <h1 className="text-4xl font-bold tracking-tight">Connect Account</h1>
-        <p className="text-muted-foreground mt-3 text-base">Link your MetaTrader account to ForexAnalyzer Pro using the EA.</p>
+        <h1 className="text-4xl font-bold tracking-tight">{pageTitle}</h1>
+        <p className="text-muted-foreground mt-3 text-base">
+          {needsPaidForNextAccount
+            ? `Your free plan already has ${accounts.length} connected account${accounts.length === 1 ? '' : 's'}. Add the next account with the paid EA so the system can unlock paid access automatically.`
+            : 'Link your MetaTrader account to ForexAnalyzer Pro using the EA.'}
+        </p>
       </motion.div>
 
       {!connected ? (
@@ -99,12 +108,29 @@ export default function ConnectPage() {
                 </p>
                 {license?.accountLimit ? (
                   <p className="mt-2 text-xs font-medium text-primary">
-                    Your current plan allows {license.accountLimit} connected account{license.accountLimit === 1 ? '' : 's'}.
+                    Your current plan allows {license.accountLimit} connected account{license.accountLimit === 1 ? '' : 's'}. You currently have {accounts.length}.
                   </p>
                 ) : null}
               </div>
             </div>
           </div>
+
+          {license?.dashboardOnly && (
+            <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
+              <div className="font-semibold text-amber-200">Trial ended - setup access is still open</div>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                You can still generate or rotate your EA key and register the account here. Live EA updates and trading tools unlock again after the paid EA validates your purchase.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a href="/pricing" className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90">
+                  View paid plans
+                </a>
+                <a href="/support" className="rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary/60">
+                  Get setup help
+                </a>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-3 mb-8">
             {[
@@ -119,6 +145,23 @@ export default function ConnectPage() {
               </div>
             ))}
           </div>
+
+          {needsPaidForNextAccount && (
+            <div className="rounded-xl border border-sky-400/30 bg-sky-400/10 p-4">
+              <div className="font-semibold text-sky-100">Use the paid EA for the next account</div>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Keep the EA key below, attach the paid ForexAnalyzer Pro EA to the new MetaTrader account, and let it connect. If the EA is the paid build, your profile becomes paid and the account stays connected. If it is the free EA, the server rejects it because the free plan is limited to {freeAccountLimit} accounts.
+              </p>
+              <a
+                href={license?.paidEaUrl || PAID_EA_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                Open paid product
+              </a>
+            </div>
+          )}
 
           <div className="rounded-lg border border-border/50 bg-secondary/30 p-4 space-y-3">
             <div className="flex items-center gap-2">
@@ -159,37 +202,41 @@ export default function ConnectPage() {
             </button>
           </div>
 
-          <div>
-            <label className="text-base text-muted-foreground block mb-2">Account ID</label>
-            <input
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              placeholder="e.g. 10047832"
-              className="w-full bg-secondary/50 rounded-lg px-4 py-3 text-foreground border border-border/50 font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
-            />
-          </div>
+          {!needsPaidForNextAccount && (
+            <>
+              <div>
+                <label className="text-base text-muted-foreground block mb-2">Account ID</label>
+                <input
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  placeholder="e.g. 10047832"
+                  className="w-full bg-secondary/50 rounded-lg px-4 py-3 text-foreground border border-border/50 font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
+                />
+              </div>
 
-          <div>
-            <label className="text-base text-muted-foreground block mb-2">Account Role</label>
-            <div className="flex flex-wrap gap-3">
-              {(['STANDALONE', 'MASTER', 'SLAVE'] as const).map((accountRole) => (
-                <button
-                  key={accountRole}
-                  type="button"
-                  onClick={() => setRole(accountRole)}
-                  className={`px-4 py-2 rounded-lg text-base font-mono transition-colors ${role === accountRole ? 'bg-primary/20 text-primary border border-primary/30' : 'bg-secondary/50 text-muted-foreground border border-border/50 hover:border-border'}`}
-                >
-                  {accountRole}
-                </button>
-              ))}
-            </div>
-          </div>
+              <div>
+                <label className="text-base text-muted-foreground block mb-2">Account Role</label>
+                <div className="flex flex-wrap gap-3">
+                  {(['STANDALONE', 'MASTER', 'SLAVE'] as const).map((accountRole) => (
+                    <button
+                      key={accountRole}
+                      type="button"
+                      onClick={() => setRole(accountRole)}
+                      className={`px-4 py-2 rounded-lg text-base font-mono transition-colors ${role === accountRole ? 'bg-primary/20 text-primary border border-primary/30' : 'bg-secondary/50 text-muted-foreground border border-border/50 hover:border-border'}`}
+                    >
+                      {accountRole}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <button onClick={handleConnect} disabled={connecting} className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold transition-all hover:bg-primary/90 disabled:opacity-50">
-            {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Server className="w-4 h-4" />}
-            {connecting ? 'Connecting...' : 'Connect Account'}
-            {!connecting && <ArrowRight className="w-4 h-4" />}
-          </button>
+              <button onClick={handleConnect} disabled={connecting} className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold transition-all hover:bg-primary/90 disabled:opacity-50">
+                {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Server className="w-4 h-4" />}
+                {connecting ? 'Connecting...' : 'Connect Account'}
+                {!connecting && <ArrowRight className="w-4 h-4" />}
+              </button>
+            </>
+          )}
         </motion.div>
       ) : (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card p-8 text-center">

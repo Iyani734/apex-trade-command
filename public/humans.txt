@@ -1,7 +1,6 @@
 /* TEAM */
 Product: ForexAnalyzer Pro
-Contact: ianchomba734@gmail.com
-MQL5: https://www.mql5.com/en/users/65614798/
+Support: https://www.forexanalyzerpro.com/support
 
 /* SITE */
 Canonical URL: https://www.forexanalyzerpro.com/

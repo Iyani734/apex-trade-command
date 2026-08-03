@@ -6,6 +6,7 @@ import {
   Clock3,
   Database,
   Eye,
+  Flame,
   MessageSquareText,
   RefreshCw,
   Search,
@@ -86,13 +87,13 @@ function MetricCard({
   };
 
   return (
-    <div className={cn('rounded-xl border bg-gradient-to-br p-4 shadow-sm', tones[tone])}>
+    <div className={cn('min-w-0 rounded-xl border bg-gradient-to-br p-3 shadow-sm sm:p-4', tones[tone])}>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</p>
+        <p className="min-w-0 truncate text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</p>
         <Icon className="h-4 w-4" />
       </div>
-      <p className="mt-3 text-2xl font-bold tracking-tight text-foreground">{value}</p>
-      {detail ? <p className="mt-1 text-xs text-muted-foreground">{detail}</p> : null}
+      <p className="mt-3 min-w-0 truncate text-xl font-bold tracking-tight text-foreground sm:text-2xl">{value}</p>
+      {detail ? <p className="mt-1 min-w-0 truncate text-xs text-muted-foreground">{detail}</p> : null}
     </div>
   );
 }
@@ -102,7 +103,7 @@ function AccountStrip({ account }: { account: AdminAccountInsight }) {
   const initialDepositValue = account.initialDeposit ?? account.estimatedInitialDeposit;
 
   return (
-    <div className="rounded-xl border border-border/50 bg-background/45 p-4">
+    <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/45 p-3 sm:p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -119,7 +120,7 @@ function AccountStrip({ account }: { account: AdminAccountInsight }) {
             {account.accountId} - {account.broker || 'Unknown broker'}{account.server ? ` - ${account.server}` : ''}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3 xl:grid-cols-6 lg:min-w-[48rem]">
+        <div className="grid min-w-0 grid-cols-1 gap-2 text-sm sm:grid-cols-3 xl:grid-cols-6 lg:min-w-[48rem]">
           <div>
             <p className="text-xs uppercase tracking-widest text-muted-foreground">{initialDepositLabel}</p>
             <p className="font-mono font-semibold">{money(initialDepositValue)}</p>
@@ -148,7 +149,7 @@ function AccountStrip({ account }: { account: AdminAccountInsight }) {
           </div>
         </div>
       </div>
-      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-7">
+      <div className="mt-4 grid min-w-0 gap-3 text-sm sm:grid-cols-2 xl:grid-cols-7">
         <div className="rounded-lg bg-secondary/20 p-3">
           <p className="text-xs text-muted-foreground">Win rate</p>
           <p className="font-semibold">{pct(account.winRate)}</p>
@@ -204,6 +205,100 @@ function FeedbackRow({ item }: { item: FeedbackResponse }) {
   );
 }
 
+function valueAsNumber(value: unknown) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function withRecomputedMetrics(insights: AdminInsightsResponse): AdminInsightsResponse {
+  const accounts = insights.accounts || [];
+  const liveAccounts = accounts.filter((account) => account.environment === 'live');
+  const demoAccounts = accounts.filter((account) => account.environment === 'demo');
+  return {
+    ...insights,
+    metrics: {
+      ...insights.metrics,
+      connectedAccounts: accounts.length,
+      liveAccounts: liveAccounts.length,
+      demoAccounts: demoAccounts.length,
+      onlineAccounts: accounts.filter((account) => account.online).length,
+      totalTrackedBalance: accounts.reduce((sum, account) => sum + valueAsNumber(account.balance), 0),
+      totalTrackedEquity: accounts.reduce((sum, account) => sum + valueAsNumber(account.equity), 0),
+      liveTrackedBalance: liveAccounts.reduce((sum, account) => sum + valueAsNumber(account.balance), 0),
+      demoTrackedBalance: demoAccounts.reduce((sum, account) => sum + valueAsNumber(account.balance), 0),
+      liveTrackedEquity: liveAccounts.reduce((sum, account) => sum + valueAsNumber(account.equity), 0),
+      demoTrackedEquity: demoAccounts.reduce((sum, account) => sum + valueAsNumber(account.equity), 0),
+    },
+  };
+}
+
+function updateUserAccountList(user: AdminUserInsight, account: AdminAccountInsight): AdminUserInsight {
+  const accounts = user.accounts.slice();
+  const idx = accounts.findIndex((row) => row.accountId === account.accountId);
+  if (idx >= 0) accounts[idx] = { ...accounts[idx], ...account };
+  else accounts.unshift(account);
+  return {
+    ...user,
+    accounts,
+    accountCount: accounts.length,
+    totalBalance: accounts.reduce((sum, row) => sum + valueAsNumber(row.balance), 0),
+    totalEquity: accounts.reduce((sum, row) => sum + valueAsNumber(row.equity), 0),
+  };
+}
+
+function applyLiveAccountUpdate(
+  current: AdminInsightsResponse | null,
+  account: AdminAccountInsight & { userId?: string; userName?: string; userEmail?: string },
+  userId?: string,
+): AdminInsightsResponse | null {
+  if (!current || !account?.accountId) return current;
+  const accountOwnerId = userId || account.userId || '';
+  const accounts = current.accounts.slice();
+  const idx = accounts.findIndex((row) => row.accountId === account.accountId);
+  if (idx >= 0) accounts[idx] = { ...accounts[idx], ...account };
+  else accounts.unshift(account);
+
+  const users = current.users.map((user) => (
+    accountOwnerId && user.userId === accountOwnerId
+      ? updateUserAccountList(user, account)
+      : user
+  ));
+
+  return withRecomputedMetrics({
+    ...current,
+    generatedAt: new Date().toISOString(),
+    accounts,
+    users,
+  });
+}
+
+function applyLiveAccountDelete(
+  current: AdminInsightsResponse | null,
+  accountId?: string,
+  userId?: string,
+): AdminInsightsResponse | null {
+  if (!current || !accountId) return current;
+  const accounts = current.accounts.filter((account) => account.accountId !== accountId);
+  const users = current.users.map((user) => {
+    if (userId && user.userId !== userId) return user;
+    const nextAccounts = user.accounts.filter((account) => account.accountId !== accountId);
+    return {
+      ...user,
+      accounts: nextAccounts,
+      accountCount: nextAccounts.length,
+      totalBalance: nextAccounts.reduce((sum, row) => sum + valueAsNumber(row.balance), 0),
+      totalEquity: nextAccounts.reduce((sum, row) => sum + valueAsNumber(row.equity), 0),
+    };
+  });
+
+  return withRecomputedMetrics({
+    ...current,
+    generatedAt: new Date().toISOString(),
+    accounts,
+    users,
+  });
+}
+
 export function AdminInsightsPanel() {
   const [insights, setInsights] = useState<AdminInsightsResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -212,11 +307,11 @@ export function AdminInsightsPanel() {
   const [accountEnvironment, setAccountEnvironment] = useState<AccountEnvironmentFilter>('all');
   const [error, setError] = useState('');
 
-  const load = async () => {
+  const load = async (refresh = false) => {
     setLoading(true);
     setError('');
     try {
-      const res = await api.support.admin.insights();
+      const res = await api.support.admin.insights(refresh);
       setInsights(res);
       setSelectedUserId((current) => current || res.users[0]?.userId || '');
     } catch (err: any) {
@@ -228,6 +323,21 @@ export function AdminInsightsPanel() {
 
   useEffect(() => {
     void load();
+  }, []);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {};
+      if (detail.eventName === 'ADMIN_ACCOUNT_DELETED') {
+        setInsights((current) => applyLiveAccountDelete(current, detail.accountId, detail.userId));
+        return;
+      }
+      if (detail.account) {
+        setInsights((current) => applyLiveAccountUpdate(current, detail.account, detail.userId));
+      }
+    };
+    window.addEventListener('fap:admin-insights-updated', handler);
+    return () => window.removeEventListener('fap:admin-insights-updated', handler);
   }, []);
 
   const filteredUsers = useMemo(() => {
@@ -270,17 +380,17 @@ export function AdminInsightsPanel() {
   const maxPageViews = Math.max(1, ...(insights?.pageUsage || []).map((page) => page.views));
 
   return (
-    <div className="space-y-5 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-xl shadow-black/10 backdrop-blur md:p-5">
-      <div className="rounded-2xl border border-sky-400/20 bg-gradient-to-br from-sky-500/18 via-background/70 to-emerald-500/10 p-5">
+    <div className="w-full min-w-0 max-w-full space-y-4 overflow-hidden rounded-2xl border border-border/60 bg-card/70 p-3 shadow-xl shadow-black/10 backdrop-blur sm:space-y-5 sm:p-4 md:p-5">
+      <div className="min-w-0 rounded-2xl border border-sky-400/20 bg-gradient-to-br from-sky-500/18 via-background/70 to-emerald-500/10 p-4 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">Admin command center</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight">Customer, account, and usage intelligence</h2>
+            <h2 className="mt-2 text-xl font-bold tracking-tight sm:text-2xl">Customer, account, and usage intelligence</h2>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
               See who opened the system today, which pages get used most, and inspect each trader account with live/demo status, balance, equity, performance, tickets, and feedback.
             </p>
           </div>
-          <Button variant="secondary" onClick={() => void load()} disabled={loading}>
+          <Button variant="secondary" className="w-full sm:w-auto" onClick={() => void load(true)} disabled={loading}>
             <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
             Refresh insights
           </Button>
@@ -297,31 +407,43 @@ export function AdminInsightsPanel() {
         ) : null}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          title="Open tickets"
+          value={insights?.metrics.openTickets || 0}
+          detail={`${insights?.metrics.urgentTickets || 0} urgent / ${insights?.metrics.solvedTickets || 0} solved`}
+          icon={AlertTriangle}
+          tone="amber"
+        />
         <MetricCard title="Opened today" value={insights?.metrics.usersOpenedToday || 0} detail={`${insights?.metrics.pageViewsToday || 0} page views`} icon={Eye} tone="cyan" />
         <MetricCard title="Connected accounts" value={insights?.metrics.connectedAccounts || 0} detail={`${insights?.metrics.onlineAccounts || 0} online now`} icon={Database} tone="emerald" />
-        <MetricCard title="Tracked equity" value={money(insights?.metrics.totalTrackedEquity)} detail={`${insights?.metrics.liveAccounts || 0} live / ${insights?.metrics.demoAccounts || 0} demo`} icon={Wallet} tone="violet" />
-        <MetricCard title="Support pressure" value={insights?.metrics.openTickets || 0} detail={`${insights?.metrics.urgentTickets || 0} urgent tickets`} icon={AlertTriangle} tone="amber" />
+        <MetricCard
+          title="Tracked balance"
+          value={money(insights?.metrics.totalTrackedBalance)}
+          detail={`Live ${money(insights?.metrics.liveTrackedBalance)} / Demo ${money(insights?.metrics.demoTrackedBalance)}`}
+          icon={Wallet}
+          tone="violet"
+        />
       </div>
 
-      <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="max-w-full justify-start overflow-x-auto bg-secondary/30">
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="accounts">Accounts</TabsTrigger>
-          <TabsTrigger value="pages">Page usage</TabsTrigger>
-          <TabsTrigger value="feedback">Feedback</TabsTrigger>
+      <Tabs defaultValue="users" className="w-full min-w-0 space-y-4">
+        <TabsList className="h-auto w-full max-w-full justify-start overflow-x-auto bg-secondary/30 p-1">
+          <TabsTrigger value="users" className="shrink-0">Users</TabsTrigger>
+          <TabsTrigger value="accounts" className="shrink-0">Accounts</TabsTrigger>
+          <TabsTrigger value="pages" className="shrink-0">Page usage</TabsTrigger>
+          <TabsTrigger value="feedback" className="shrink-0">Feedback</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
-          <div className="grid gap-4 xl:grid-cols-[24rem_minmax(0,1fr)]">
-            <div className="rounded-2xl border border-border/50 bg-background/35">
+          <div className="grid min-w-0 gap-4 xl:grid-cols-[24rem_minmax(0,1fr)]">
+            <div className="min-w-0 overflow-hidden rounded-2xl border border-border/50 bg-background/35">
               <div className="border-b border-border/50 p-3">
-                <div className="relative">
+                <div className="relative min-w-0">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search users, email, account..." className="pl-9" />
+                  <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search users, email, account..." className="min-w-0 pl-9" />
                 </div>
               </div>
-              <div className="max-h-[34rem] overflow-y-auto p-2">
+              <div className="max-h-[52svh] overflow-y-auto overflow-x-hidden p-2 sm:max-h-[34rem]">
                 {loading && !insights ? (
                   <div className="p-6 text-center text-sm text-muted-foreground">Loading user intelligence...</div>
                 ) : null}
@@ -330,21 +452,22 @@ export function AdminInsightsPanel() {
                     key={user.userId}
                     onClick={() => setSelectedUserId(user.userId)}
                     className={cn(
-                      'mb-2 w-full rounded-xl border p-3 text-left transition hover:bg-secondary/35',
+                      'mb-2 w-full min-w-0 overflow-hidden rounded-xl border p-3 text-left transition hover:bg-secondary/35',
                       user.userId === selectedUser?.userId ? 'border-sky-400/50 bg-sky-500/10' : 'border-border/40 bg-secondary/10',
                     )}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
                         <p className="truncate font-semibold">{user.name}</p>
                         <p className="truncate text-xs text-muted-foreground">{user.email || user.userId}</p>
                       </div>
-                      <Badge variant="outline" className="capitalize">{user.licenseStatus}</Badge>
+                      <Badge variant="outline" className="w-fit max-w-full shrink-0 capitalize">{user.licenseStatus}</Badge>
                     </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-                      <span>{user.accountCount} account{user.accountCount === 1 ? '' : 's'}</span>
-                      <span>{user.pageViewsToday} views</span>
-                      <span>{shortDate(user.lastSeenAt)}</span>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground sm:grid-cols-4">
+                      <span className="min-w-0 truncate">{user.accountCount} account{user.accountCount === 1 ? '' : 's'}</span>
+                      <span className="min-w-0 truncate">{user.pageViewsToday} views</span>
+                      <span className="min-w-0 truncate">{user.streak?.currentStreak || 0} day streak</span>
+                      <span className="min-w-0 truncate">{shortDate(user.lastSeenAt)}</span>
                     </div>
                   </button>
                 ))}
@@ -354,19 +477,19 @@ export function AdminInsightsPanel() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/50 bg-background/35 p-4">
+            <div className="min-w-0 overflow-hidden rounded-2xl border border-border/50 bg-background/35 p-3 sm:p-4">
               {selectedUser ? (
-                <div className="space-y-4">
+                <div className="min-w-0 space-y-4">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-xl font-bold">{selectedUser.name}</h3>
+                        <h3 className="min-w-0 truncate text-lg font-bold sm:text-xl">{selectedUser.name}</h3>
                         <Badge variant="outline" className="capitalize">{selectedUser.licenseStatus}</Badge>
                         <Badge variant="secondary">{selectedUser.planMode}</Badge>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{selectedUser.email || selectedUser.userId}</p>
+                      <p className="mt-1 truncate text-sm text-muted-foreground">{selectedUser.email || selectedUser.userId}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                    <div className="grid min-w-0 grid-cols-1 gap-2 text-sm sm:grid-cols-2 xl:grid-cols-5">
                       <div className="rounded-lg bg-secondary/20 p-3">
                         <p className="text-xs text-muted-foreground">Balance</p>
                         <p className="font-semibold">{money(selectedUser.totalBalance)}</p>
@@ -380,13 +503,20 @@ export function AdminInsightsPanel() {
                         <p className="font-semibold">{selectedUser.pageViewsToday}</p>
                       </div>
                       <div className="rounded-lg bg-secondary/20 p-3">
+                        <p className="text-xs text-muted-foreground">Streak</p>
+                        <p className="flex items-center gap-1 font-semibold">
+                          <Flame className={cn('h-4 w-4', selectedUser.streak?.active ? 'fill-orange-400 text-orange-300' : 'text-muted-foreground')} />
+                          {selectedUser.streak?.currentStreak || 0}d
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-secondary/20 p-3">
                         <p className="text-xs text-muted-foreground">Tickets</p>
                         <p className="font-semibold">{selectedUser.openTickets + selectedUser.pendingTickets}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid min-w-0 gap-3 md:grid-cols-3">
                     <div className="rounded-xl border border-border/40 bg-secondary/10 p-3">
                       <div className="flex items-center gap-2 text-sm font-semibold"><Clock3 className="h-4 w-4 text-sky-300" /> Last activity</div>
                       <p className="mt-2 text-sm text-muted-foreground">{shortDate(selectedUser.lastSeenAt)}</p>
@@ -402,9 +532,21 @@ export function AdminInsightsPanel() {
                         {selectedUser.latestFeedbackScore ? ` - latest ${selectedUser.latestFeedbackScore}/10` : ''}
                       </p>
                     </div>
+                    <div className="rounded-xl border border-border/40 bg-secondary/10 p-3 md:col-span-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        <Flame className={cn('h-4 w-4', selectedUser.streak?.active ? 'fill-orange-400 text-orange-300' : 'text-muted-foreground')} />
+                        Trading streak
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground break-words">
+                        Current {selectedUser.streak?.currentStreak || 0} day{(selectedUser.streak?.currentStreak || 0) === 1 ? '' : 's'} -
+                        Longest {selectedUser.streak?.longestStreak || 0} -
+                        Restores left {selectedUser.streak?.restoresRemaining ?? 0} -
+                        Timezone {selectedUser.streak?.timezone || 'Not detected yet'}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="min-w-0 space-y-3">
                     <h4 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Linked accounts</h4>
                     {selectedUser.accounts.length ? selectedUser.accounts.map((account) => (
                       <AccountStrip key={account.accountId} account={account} />
@@ -424,7 +566,7 @@ export function AdminInsightsPanel() {
           </div>
         </TabsContent>
 
-        <TabsContent value="accounts" className="space-y-3">
+        <TabsContent value="accounts" className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             {(['all', 'live', 'demo', 'unknown'] as AccountEnvironmentFilter[]).map((value) => (
               <button
@@ -453,13 +595,13 @@ export function AdminInsightsPanel() {
           ) : null}
         </TabsContent>
 
-        <TabsContent value="pages" className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-3">
+        <TabsContent value="pages" className="min-w-0 space-y-4">
+          <div className="grid min-w-0 gap-3 md:grid-cols-3">
             <MetricCard title="Page views today" value={insights?.metrics.pageViewsToday || 0} detail="Signed-in dashboard usage" icon={Eye} tone="cyan" />
             <MetricCard title="Active last hour" value={insights?.metrics.activeLastHour || 0} detail="Unique signed-in users" icon={Activity} tone="emerald" />
             <MetricCard title="Most used page" value={insights?.metrics.mostUsedPage || 'None'} detail="Highest traffic today" icon={TrendingUp} tone="violet" />
           </div>
-          <div className="rounded-2xl border border-border/50 bg-background/35 p-4">
+          <div className="min-w-0 overflow-hidden rounded-2xl border border-border/50 bg-background/35 p-3 sm:p-4">
             <h3 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Most used pages today</h3>
             <div className="mt-4 space-y-3">
               {(insights?.pageUsage || []).map((page) => (
@@ -480,8 +622,8 @@ export function AdminInsightsPanel() {
           </div>
         </TabsContent>
 
-        <TabsContent value="feedback" className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-3">
+        <TabsContent value="feedback" className="min-w-0 space-y-4">
+          <div className="grid min-w-0 gap-3 md:grid-cols-3">
             <MetricCard title="Responses" value={insights?.metrics.feedbackCount || 0} detail="Collected product feedback" icon={MessageSquareText} tone="amber" />
             <MetricCard title="Average score" value={insights?.metrics.averageFeedbackScore ? `${insights.metrics.averageFeedbackScore.toFixed(1)}/10` : 'No score'} detail="Recent satisfaction" icon={ShieldCheck} tone="emerald" />
             <MetricCard title="Total users" value={insights?.metrics.totalUsers || 0} detail="Profiles known to the system" icon={Users} tone="violet" />

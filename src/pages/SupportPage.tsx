@@ -116,7 +116,7 @@ export default function SupportPage() {
       return;
     }
     void loadTickets();
-    const timer = window.setInterval(() => void loadTickets(true), 15000);
+    const timer = window.setInterval(() => void loadTickets(true), 120000);
     return () => window.clearInterval(timer);
   }, [loadTickets, user]);
 
@@ -128,9 +128,22 @@ export default function SupportPage() {
       return;
     }
     void loadThread(ticketId);
-    const timer = window.setInterval(() => void loadThread(ticketId, true), 6000);
+    const timer = window.setInterval(() => void loadThread(ticketId, true), 60000);
     return () => window.clearInterval(timer);
   }, [loadThread, ticketId, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ ticketId?: string }>).detail || {};
+      void loadTickets(true);
+      if (ticketId && (!detail.ticketId || detail.ticketId === ticketId)) {
+        void loadThread(ticketId, true);
+      }
+    };
+    window.addEventListener('fap:support-updated', handler);
+    return () => window.removeEventListener('fap:support-updated', handler);
+  }, [loadTickets, loadThread, ticketId, user]);
 
   const createTicket = async (event: FormEvent) => {
     event.preventDefault();

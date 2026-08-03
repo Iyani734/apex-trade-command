@@ -6,13 +6,16 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { mockMode } from '@/hooks/useMockData';
+import { readTrialDeviceLock } from '@/lib/trial';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { user, loading, signInWithGoogle, signInWithEmailMagicLink } = useAuth();
   const [signingIn, setSigningIn] = useState(false);
   const [sendingMagicLink, setSendingMagicLink] = useState(false);
-  const [email, setEmail] = useState('');
+  const [deviceLock] = useState(() => readTrialDeviceLock());
+  const lockedEmail = deviceLock?.email?.trim().toLowerCase() || '';
+  const [email, setEmail] = useState(() => lockedEmail);
   const [magicLinkSentTo, setMagicLinkSentTo] = useState('');
 
   useEffect(() => {
@@ -35,6 +38,10 @@ export default function LoginPage() {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
       toast.error('Enter your email address first.');
+      return;
+    }
+    if (lockedEmail && normalizedEmail !== lockedEmail) {
+      toast.error(`This device is linked to ${lockedEmail}. Use that email to continue.`);
       return;
     }
 
@@ -97,27 +104,35 @@ export default function LoginPage() {
               </div>
               <h1 className="text-2xl font-bold tracking-tight">ForexAnalyzer Pro</h1>
               <p className="text-muted-foreground mt-1.5 text-sm">
-                Sign in securely with Google or an email magic link
+                {lockedEmail ? 'This device is linked to one trial email' : 'Sign in securely with Google or an email magic link'}
               </p>
             </div>
 
             {/* Body */}
             <div className="p-6 sm:p-8 space-y-5">
-              <button
-                onClick={handleGoogleSignIn}
-                disabled={loading || signingIn}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition disabled:opacity-60"
-              >
-                {signingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                Continue with Google
-              </button>
-              <div className="relative flex items-center py-1">
-                <div className="h-px flex-1 bg-border/70" />
-                <span className="px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  or
-                </span>
-                <div className="h-px flex-1 bg-border/70" />
-              </div>
+              {lockedEmail ? (
+                <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm leading-6 text-muted-foreground">
+                  This browser is already linked to <span className="font-mono font-semibold text-amber-100">{lockedEmail}</span>. For security, continue with an email magic link to that address.
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={handleGoogleSignIn}
+                    disabled={loading || signingIn}
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition disabled:opacity-60"
+                  >
+                    {signingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                    Continue with Google
+                  </button>
+                  <div className="relative flex items-center py-1">
+                    <div className="h-px flex-1 bg-border/70" />
+                    <span className="px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      or
+                    </span>
+                    <div className="h-px flex-1 bg-border/70" />
+                  </div>
+                </>
+              )}
               <form onSubmit={handleEmailSignIn} className="space-y-3">
                 <label htmlFor="login-email" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   Email magic link
@@ -129,6 +144,7 @@ export default function LoginPage() {
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="you@example.com"
                   autoComplete="email"
+                  readOnly={Boolean(lockedEmail)}
                   disabled={loading || signingIn || sendingMagicLink}
                   className="w-full rounded-lg border border-border bg-background/70 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:opacity-60"
                 />
@@ -138,7 +154,7 @@ export default function LoginPage() {
                   className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-secondary/70 text-foreground font-semibold hover:bg-secondary transition disabled:opacity-60"
                 >
                   {sendingMagicLink ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                  Send magic link
+                  {lockedEmail ? 'Send magic link to original email' : 'Send magic link'}
                 </button>
                 {magicLinkSentTo ? (
                   <p className="rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-xs leading-relaxed text-primary">

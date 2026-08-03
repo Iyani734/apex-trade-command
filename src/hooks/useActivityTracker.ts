@@ -4,7 +4,7 @@ import { api } from '@/services/api';
 import { useAuth } from '@/lib/auth';
 
 const lastSentAt = new Map<string, number>();
-const MIN_REPEAT_MS = 60_000;
+const MIN_REPEAT_MS = 10 * 60_000;
 
 export function useActivityTracker() {
   const location = useLocation();

@@ -1,16 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { userPrefs } from '@/lib/userPrefs';
 import { mockMode } from '@/hooks/useMockData';
-import { clearStoredReferralCode, getStoredReferralCode, storeReferralCode, type ReferralSummary, type SupportAgent } from '@/services/api';
+import { clearStoredReferralCode, getBrowserTimeZone, getStoredReferralCode, storeReferralCode, type ReferralSummary, type SupportAgent } from '@/services/api';
 import {
   bindTrialDeviceToUser,
   createDeviceBlockedLicense,
   getOrCreateTrialDeviceId,
   getTrialBrowserFingerprint,
-  PAID_EA_URL,
+  rememberTrialDeviceEmail,
   type TrialLicense,
 } from '@/lib/trial';
 
@@ -90,9 +90,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (localDevice.blocked) {
       const message = localDevice.lock?.email
-        ? `This browser is already linked to ${localDevice.lock.email}. Use that account or upgrade to a paid license.`
+        ? `This browser is already linked to ${localDevice.lock.email}. Please sign in with that email using the email magic link.`
         : 'This device is already linked to another ForexAnalyzer Pro trial account.';
-      setLicense(createDeviceBlockedLicense(message));
+      setLicense(createDeviceBlockedLicense(message, localDevice.lock?.email || null));
       setDeviceBlocked(true);
       setSupportAgent(null);
       setReferral(null);
@@ -108,6 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (deviceId) headers.set('x-fap-device-id', deviceId);
       const browserFingerprint = getTrialBrowserFingerprint();
       if (browserFingerprint) headers.set('x-fap-device-fingerprint', browserFingerprint);
+      const timezone = getBrowserTimeZone();
+      if (timezone) headers.set('x-fap-timezone', timezone);
       const referralCode = getStoredReferralCode();
       if (referralCode) headers.set('x-fap-referral-code', referralCode);
 
@@ -119,6 +121,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         referral?: AuthContextValue['referral'];
       };
       setLicense(data.license || null);
+      if (data.license?.deviceBlocked && data.license.deviceLockEmail) {
+        rememberTrialDeviceEmail(data.license.deviceLockEmail);
+      }
       setDeviceBlocked(Boolean(data.license?.deviceBlocked));
       setSupportAgent(data.supportAgent || null);
       setReferral(data.referral || null);
@@ -219,6 +224,9 @@ export function useAuth() {
   return ctx;
 }
 
+const isDeviceBlockRecoveryPath = (pathname: string) =>
+  pathname === '/login';
+
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading, license, deviceBlocked, signOut } = useAuth();
   const location = useLocation();
@@ -235,7 +243,8 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   if (!user && !isDemo) {
     mockMode.setEnabled(true);
   }
-  if (!isDemo && deviceBlocked) {
+  if (!isDemo && deviceBlocked && !isDeviceBlockRecoveryPath(location.pathname)) {
+    const lockedEmail = license?.deviceLockEmail || '';
     return (
       <div className="min-h-screen grid place-items-center bg-background px-4">
         <div className="w-full max-w-md rounded-xl border border-border/60 bg-card p-6 text-center shadow-xl">
@@ -244,29 +253,27 @@ export function RequireAuth({ children }: { children: ReactNode }) {
           <p className="mt-3 text-sm text-muted-foreground">
             {license?.message || 'This device or MetaTrader account is already linked to another ForexAnalyzer Pro trial account.'}
           </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <a
-              href={license?.paidEaUrl || PAID_EA_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-            >
-              Get paid version
-            </a>
+          {lockedEmail ? (
+            <div className="mt-4 rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 font-mono text-sm text-primary">
+              {lockedEmail}
+            </div>
+          ) : null}
+          <div className="mt-6 flex flex-col gap-3">
             <button
               type="button"
-              onClick={() => void signOut()}
-              className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary/60"
+              onClick={() => {
+                void signOut().finally(() => {
+                  window.location.href = '/login';
+                });
+              }}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
-              Sign out
+              Send magic link to original email
             </button>
           </div>
         </div>
       </div>
     );
-  }
-  if (!isDemo && license?.dashboardOnly && location.pathname !== '/dashboard') {
-    return <Navigate to="/dashboard" replace state={{ trialLocked: true }} />;
   }
   return <>{children}</>;
 }

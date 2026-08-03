@@ -27,6 +27,11 @@ export interface TrialLicense {
   trialEndsAt: string;
   graceEndsAt: string;
   paidUntil: string | null;
+  paidEaLastSeenAt?: string | null;
+  paidEaLicenseType?: string | null;
+  paidEaMarketProductId?: string | null;
+  paidEaAccessWindowHours?: number;
+  deviceLockEmail?: string | null;
   warningStartsAt: string;
   daysUntilTrialEnds: number;
   daysUntilAccessEnds: number;
@@ -121,9 +126,14 @@ export function readTrialDeviceLock(): TrialDeviceLock | null {
 export function bindTrialDeviceToUser(user: { id: string; email?: string | null }) {
   if (!hasStorage()) return { blocked: false, lock: null as TrialDeviceLock | null };
   const existing = readTrialDeviceLock();
-  const email = user.email || '';
+  const email = (user.email || '').trim().toLowerCase();
 
   if (existing && existing.userId && existing.userId !== user.id) {
+    if (existing.email && email && existing.email.trim().toLowerCase() === email) {
+      const updated = { ...existing, userId: user.id, email };
+      window.localStorage.setItem(TRIAL_DEVICE_LOCK_KEY, JSON.stringify(updated));
+      return { blocked: false, lock: updated };
+    }
     return { blocked: true, lock: existing };
   }
 
@@ -140,6 +150,19 @@ export function bindTrialDeviceToUser(user: { id: string; email?: string | null 
   return { blocked: false, lock: { ...next, email } };
 }
 
+export function rememberTrialDeviceEmail(email: string) {
+  if (!hasStorage()) return;
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return;
+  const existing = readTrialDeviceLock();
+  const next: TrialDeviceLock = {
+    userId: existing?.userId || `email:${normalizedEmail}`,
+    email: normalizedEmail,
+    createdAt: existing?.createdAt || new Date().toISOString(),
+  };
+  window.localStorage.setItem(TRIAL_DEVICE_LOCK_KEY, JSON.stringify(next));
+}
+
 export function getLocalDateKey(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -151,7 +174,7 @@ export function getTrialWarningStorageKey(userId: string) {
   return `${TRIAL_WARNING_PREFIX}.${userId}`;
 }
 
-export function createDeviceBlockedLicense(message?: string): TrialLicense {
+export function createDeviceBlockedLicense(message?: string, deviceLockEmail?: string | null): TrialLicense {
   const now = new Date();
   const trialEnds = new Date(now.getTime() + FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000);
   const graceEnds = new Date(now.getTime() + (FREE_TRIAL_DAYS + FREE_TRIAL_GRACE_DAYS) * 24 * 60 * 60 * 1000);
@@ -177,6 +200,7 @@ export function createDeviceBlockedLicense(message?: string): TrialLicense {
     daysUntilAccessEnds: 0,
     freeEaUrl: FREE_EA_URL,
     paidEaUrl: PAID_EA_URL,
+    deviceLockEmail: deviceLockEmail || null,
     message: message || 'This device or MetaTrader account is already linked to another ForexAnalyzer Pro trial account.',
   };
 }

@@ -21,6 +21,9 @@ const formatDate = (value?: string | null) => {
   }).format(new Date(value));
 };
 
+const RECOMMENDED_BROKER_URL = 'https://one.exnessonelink.com/a/fhc3i952hn';
+const BROKER_BONUS_TEXT = 'You can also open an account with our recommended broker and contact support to claim 3 months free premium.';
+
 export function TrialNotice() {
   const { user, license } = useAuth();
   const [open, setOpen] = useState(false);
@@ -75,16 +78,16 @@ export function TrialNotice() {
       return {
         icon: Lock,
         title: 'Your free trial has ended',
-        body: `Your ${license.trialDays}-day trial plus ${license.graceDays} extra days has finished. Upgrade on MQL5 to unlock trading tools, settings, journal, alerts, copy trading, and account actions again.`,
-        note: 'For now, only the dashboard remains available.',
+        body: `Your ${license.trialDays}-day trial plus ${license.graceDays} extra days has finished. Upgrade on MQL5 to unlock trading tools, journal, alerts, analytics, copy trading, and account actions again. ${BROKER_BONUS_TEXT}`,
+        note: 'Dashboard, pricing, support, and Connect Account stay open so you can upgrade, rotate your EA key, or ask us for help.',
       };
     }
 
     return {
       icon: Clock,
       title: 'Your free trial is almost over',
-      body: `Your ${license.trialDays}-day free trial ends on ${formatDate(license.trialEndsAt)}. We added ${license.graceDays} extra days, so full access remains until ${formatDate(license.graceEndsAt)}.`,
-      note: `${license.daysUntilAccessEnds} day${license.daysUntilAccessEnds === 1 ? '' : 's'} left before access is limited to the dashboard.`,
+      body: `Your ${license.trialDays}-day free trial ends on ${formatDate(license.trialEndsAt)}. We added ${license.graceDays} extra days, so full access remains until ${formatDate(license.graceEndsAt)}. ${BROKER_BONUS_TEXT}`,
+      note: `${license.daysUntilAccessEnds} day${license.daysUntilAccessEnds === 1 ? '' : 's'} left before trading tools lock. Dashboard, pricing, support, and Connect Account will remain available.`,
     };
   }, [license]);
 
@@ -110,6 +113,12 @@ export function TrialNotice() {
         <DialogFooter className="gap-2 sm:gap-2">
           <Button variant="secondary" onClick={() => setOpen(false)}>
             Not now
+          </Button>
+          <Button variant="outline" asChild>
+            <a href={RECOMMENDED_BROKER_URL} target="_blank" rel="noreferrer">
+              Broker bonus
+              <ExternalLink className="h-4 w-4" />
+            </a>
           </Button>
           <Button asChild>
             <a href={license.paidEaUrl || PAID_EA_URL} target="_blank" rel="noreferrer">

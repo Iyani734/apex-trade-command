@@ -29,6 +29,14 @@ export function clearStoredReferralCode() {
   }
 }
 
+export function getBrowserTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    return '';
+  }
+}
+
 export function storeReferralCode(rawCode: string | null | undefined) {
   const code = String(rawCode || '')
     .trim()
@@ -63,6 +71,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (deviceId) headers.set('x-fap-device-id', deviceId);
   const browserFingerprint = getTrialBrowserFingerprint();
   if (browserFingerprint) headers.set('x-fap-device-fingerprint', browserFingerprint);
+  const timezone = getBrowserTimeZone();
+  if (timezone) headers.set('x-fap-timezone', timezone);
   const referralCode = getStoredReferralCode();
   if (referralCode) headers.set('x-fap-referral-code', referralCode);
 
@@ -208,6 +218,40 @@ export interface ReferralSummary {
   referrals: ReferralRecord[];
 }
 
+export interface TradingStreak {
+  currentStreak: number;
+  longestStreak: number;
+  active: boolean;
+  fireState: 'burning' | 'dull' | string;
+  status: string;
+  activationPending?: boolean;
+  requiredActiveMs?: number;
+  activeSessionMs?: number;
+  activationProgress?: number;
+  today: string;
+  timezone: string;
+  marketDay: boolean;
+  marketPaused: boolean;
+  lastActiveDate: string | null;
+  lastSeenAt: string | null;
+  restoreLimit: number;
+  restoresUsedThisMonth: number;
+  restoresRemaining: number;
+  totalRestoresUsed: number;
+  monthlyRestorePeriod: string;
+  nextMilestone: number | null;
+  milestonesSent: number[];
+  consistencyLabel: string;
+  restored?: boolean;
+  lost?: boolean;
+  restoresUsed?: number;
+  milestoneAchieved?: {
+    days: number;
+    title: string;
+    message: string;
+  } | null;
+}
+
 export interface AdminClientOverview {
   user_id: string;
   email?: string;
@@ -308,6 +352,7 @@ export interface AdminUserInsight {
   accountCount: number;
   totalBalance: number;
   totalEquity: number;
+  streak?: TradingStreak | null;
 }
 
 export interface AdminInsightsResponse {
@@ -325,8 +370,15 @@ export interface AdminInsightsResponse {
     onlineAccounts: number;
     totalTrackedBalance: number;
     totalTrackedEquity: number;
+    liveTrackedBalance: number;
+    demoTrackedBalance: number;
+    liveTrackedEquity: number;
+    demoTrackedEquity: number;
     openTickets: number;
     urgentTickets: number;
+    solvedTickets: number;
+    archivedTickets: number;
+    archivedSupportMessages: number;
     feedbackCount: number;
     averageFeedbackScore: number | null;
   };
@@ -399,6 +451,7 @@ export const api = {
       license: TrialLicense;
       supportAgent: SupportAgent | null;
       referral: Omit<ReferralSummary, 'referrals'> & { accepted?: ReferralRecord | null };
+      streak?: TradingStreak | null;
     }>('/auth/me'),
     rotateEaKey: () => request<{ apiKey: string; keyPrefix: string; message: string }>('/auth/ea-key/rotate', { method: 'POST' }),
   },
@@ -426,6 +479,27 @@ export const api = {
       request<{ success: boolean; missingTable?: boolean }>('/activity/page-view', {
         method: 'POST',
         body: JSON.stringify(data),
+      }),
+  },
+
+  streak: {
+    me: () => {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return request<{ streak: TradingStreak; missingTable?: boolean; databaseDisabled?: boolean }>(
+        `/streak/me?timezone=${encodeURIComponent(timezone || '')}`,
+      );
+    },
+    checkIn: (data?: { pagePath?: string; source?: string; activeSessionMs?: number }) =>
+      request<{ streak: TradingStreak; missingTable?: boolean; databaseDisabled?: boolean }>('/streak/check-in', {
+        method: 'POST',
+        body: JSON.stringify({
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          metadata: {
+            source: data?.source || 'site_open',
+            pagePath: data?.pagePath || window.location.pathname,
+            activeSessionMs: data?.activeSessionMs || 0,
+          },
+        }),
       }),
   },
 
@@ -588,8 +662,8 @@ export const api = {
         }),
       listUsers: () =>
         request<{ users: AdminClientOverview[]; agent: SupportAgent }>('/support/admin/users'),
-      insights: () =>
-        request<AdminInsightsResponse>('/support/admin/insights'),
+      insights: (refresh = false) =>
+        request<AdminInsightsResponse>(`/support/admin/insights${refresh ? '?refresh=1' : ''}`),
       listFeedback: () =>
         request<{ feedback: FeedbackResponse[]; agent: SupportAgent }>('/support/admin/feedback'),
     },

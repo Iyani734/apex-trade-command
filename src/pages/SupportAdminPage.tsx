@@ -135,7 +135,7 @@ export default function SupportAdminPage() {
   useEffect(() => {
     if (authLoading || !supportAgent) return;
     void loadTickets();
-    const timer = window.setInterval(() => void loadTickets(true), 15000);
+    const timer = window.setInterval(() => void loadTickets(true), 120000);
     return () => window.clearInterval(timer);
   }, [authLoading, loadTickets, supportAgent]);
 
@@ -147,9 +147,22 @@ export default function SupportAdminPage() {
       return;
     }
     void loadThread(selectedId);
-    const timer = window.setInterval(() => void loadThread(selectedId, true), 6000);
+    const timer = window.setInterval(() => void loadThread(selectedId, true), 60000);
     return () => window.clearInterval(timer);
   }, [authLoading, loadThread, selectedId, supportAgent]);
+
+  useEffect(() => {
+    if (authLoading || !supportAgent) return;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ ticketId?: string }>).detail || {};
+      void loadTickets(true);
+      if (selectedId && (!detail.ticketId || detail.ticketId === selectedId)) {
+        void loadThread(selectedId, true);
+      }
+    };
+    window.addEventListener('fap:support-updated', handler);
+    return () => window.removeEventListener('fap:support-updated', handler);
+  }, [authLoading, loadTickets, loadThread, selectedId, supportAgent]);
 
   const sendReply = async (event: FormEvent) => {
     event.preventDefault();
@@ -218,15 +231,15 @@ export default function SupportAdminPage() {
             </p>
           </div>
           <div className="grid gap-2 sm:grid-cols-4 lg:min-w-[34rem]">
-            <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/10 p-3">
-              <Inbox className="mb-2 h-4 w-4 text-cyan-300" />
-              <p className="text-2xl font-bold">{ticketStats.total}</p>
-              <p className="text-xs text-muted-foreground">Tickets</p>
-            </div>
             <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 p-3">
               <Users className="mb-2 h-4 w-4 text-amber-300" />
               <p className="text-2xl font-bold">{ticketStats.active}</p>
-              <p className="text-xs text-muted-foreground">Active</p>
+              <p className="text-xs text-muted-foreground">Open tickets</p>
+            </div>
+            <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/10 p-3">
+              <Inbox className="mb-2 h-4 w-4 text-cyan-300" />
+              <p className="text-2xl font-bold">{ticketStats.total}</p>
+              <p className="text-xs text-muted-foreground">Tickets total</p>
             </div>
             <div className="rounded-xl border border-rose-400/20 bg-rose-500/10 p-3">
               <AlertTriangle className="mb-2 h-4 w-4 text-rose-300" />
